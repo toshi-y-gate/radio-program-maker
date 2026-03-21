@@ -57,12 +57,13 @@ export async function createCustomVoice(
 }
 
 export async function deleteCustomVoice(userId: string, voiceId: string) {
-  const voice = await prisma.customVoice.findFirst({
-    where: { id: voiceId, userId },
+  await prisma.$transaction(async (tx) => {
+    const voice = await tx.customVoice.findFirst({
+      where: { id: voiceId, userId },
+    });
+    if (!voice) {
+      throw new Error("音声が見つかりません");
+    }
+    await tx.customVoice.delete({ where: { id: voiceId } });
   });
-  if (!voice) {
-    throw new Error("音声が見つかりません");
-  }
-
-  await prisma.customVoice.delete({ where: { id: voiceId } });
 }

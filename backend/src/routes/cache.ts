@@ -9,9 +9,4 @@ router.get("/stats", authMiddleware, (_req: Request, res: Response) => {
   res.json(stats);
 });
 
-router.post("/clear", authMiddleware, (_req: Request, res: Response) => {
-  const result = cacheService.clearCache();
-  res.json(result);
-});
-
 export default router;

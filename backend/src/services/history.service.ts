@@ -68,12 +68,13 @@ export async function deleteHistory(
   userId: string,
   historyId: string
 ): Promise<void> {
-  const item = await prisma.history.findFirst({
-    where: { id: historyId, userId },
+  await prisma.$transaction(async (tx) => {
+    const item = await tx.history.findFirst({
+      where: { id: historyId, userId },
+    });
+    if (!item) {
+      throw new Error("履歴が見つかりません");
+    }
+    await tx.history.delete({ where: { id: historyId } });
   });
-  if (!item) {
-    throw new Error("履歴が見つかりません");
-  }
-
-  await prisma.history.delete({ where: { id: historyId } });
 }

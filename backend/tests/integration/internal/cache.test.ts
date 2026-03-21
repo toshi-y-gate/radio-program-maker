@@ -53,24 +53,11 @@ describe("GET /api/cache/stats", () => {
 });
 
 describe("POST /api/cache/clear", () => {
-  beforeEach(() => {
-    if (!fs.existsSync(CACHE_DIR)) {
-      fs.mkdirSync(CACHE_DIR, { recursive: true });
-    }
-    fs.writeFileSync(path.join(CACHE_DIR, "test-cache.mp3"), "data");
-  });
-
-  it("should clear cache", async () => {
+  it("should return 404 (endpoint removed for security)", async () => {
     const res = await request
       .post("/api/cache/clear")
       .set("Authorization", `Bearer ${authToken}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.deletedCount).toBeGreaterThanOrEqual(1);
-  });
-
-  it("should reject without auth", async () => {
-    const res = await request.post("/api/cache/clear");
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(404);
   });
 });

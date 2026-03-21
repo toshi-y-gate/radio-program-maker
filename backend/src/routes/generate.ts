@@ -22,6 +22,7 @@ router.post("/", authMiddleware, async (req: Request, res: Response) => {
     );
     res.json(result);
   } catch (err) {
+    console.error("Generate error:", err instanceof Error ? err.message : err);
     const message =
       err instanceof Error ? err.message : "音声生成に失敗しました";
     res.status(500).json({ error: message });

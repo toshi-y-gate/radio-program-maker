@@ -20,6 +20,7 @@ router.post("/register", async (req: Request, res: Response) => {
     );
     res.status(201).json(result);
   } catch (err) {
+    console.error("Register error:", err instanceof Error ? err.message : err);
     const message = err instanceof Error ? err.message : "登録に失敗しました";
     res.status(409).json({ error: message });
   }
@@ -39,6 +40,7 @@ router.post("/login", async (req: Request, res: Response) => {
     );
     res.json(result);
   } catch (err) {
+    console.error("Login error:", err instanceof Error ? err.message : err);
     const message =
       err instanceof Error ? err.message : "ログインに失敗しました";
     res.status(401).json({ error: message });
@@ -54,9 +56,22 @@ router.get("/me", authMiddleware, async (req: Request, res: Response) => {
     const user = await authService.getMe(req.userId!);
     res.json(user);
   } catch (err) {
+    console.error("GetMe error:", err instanceof Error ? err.message : err);
     const message =
       err instanceof Error ? err.message : "ユーザー情報の取得に失敗しました";
     res.status(404).json({ error: message });
+  }
+});
+
+router.delete("/me", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    await authService.deleteAccount(req.userId!);
+    res.json({ message: "アカウントを削除しました" });
+  } catch (err) {
+    console.error("DeleteAccount error:", err instanceof Error ? err.message : err);
+    const message =
+      err instanceof Error ? err.message : "アカウント削除に失敗しました";
+    res.status(500).json({ error: message });
   }
 });
 

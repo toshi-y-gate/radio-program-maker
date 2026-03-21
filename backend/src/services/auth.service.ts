@@ -12,14 +12,16 @@ export async function register(
   password: string,
   displayName: string
 ): Promise<AuthResult> {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new Error("このメールアドレスは既に登録されています");
-  }
-
   const hashed = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: { email, password: hashed, displayName },
+
+  const user = await prisma.$transaction(async (tx) => {
+    const existing = await tx.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new Error("このメールアドレスは既に登録されています");
+    }
+    return tx.user.create({
+      data: { email, password: hashed, displayName },
+    });
   });
 
   const token = generateToken(user.id);
@@ -61,4 +63,12 @@ export async function getMe(
     throw new Error("ユーザーが見つかりません");
   }
   return user;
+}
+
+export async function deleteAccount(userId: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new Error("ユーザーが見つかりません");
+  }
+  await prisma.user.delete({ where: { id: userId } });
 }

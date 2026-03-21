@@ -6,8 +6,13 @@ import * as voiceService from "../services/voice.service";
 const router = Router();
 
 router.get("/", authMiddleware, async (req: Request, res: Response) => {
-  const result = await voiceService.getAllVoices(req.userId!);
-  res.json(result);
+  try {
+    const result = await voiceService.getAllVoices(req.userId!);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "ボイス一覧の取得に失敗しました";
+    res.status(500).json({ error: message });
+  }
 });
 
 router.get("/preset", (_req: Request, res: Response) => {
@@ -21,13 +26,18 @@ router.post("/custom", authMiddleware, async (req: Request, res: Response) => {
     return;
   }
 
-  const sampleUrl = req.body.sampleUrl || "";
-  const voice = await voiceService.createCustomVoice(
-    req.userId!,
-    parsed.data.name,
-    sampleUrl
-  );
-  res.status(201).json({ voice });
+  try {
+    const sampleUrl = req.body.sampleUrl || "";
+    const voice = await voiceService.createCustomVoice(
+      req.userId!,
+      parsed.data.name,
+      sampleUrl
+    );
+    res.status(201).json({ voice });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "ボイスの作成に失敗しました";
+    res.status(500).json({ error: message });
+  }
 });
 
 router.delete(

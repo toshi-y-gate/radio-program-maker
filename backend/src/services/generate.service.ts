@@ -148,7 +148,7 @@ export async function generateRadio(
   }
 
   const combined = Buffer.concat(audioBuffers);
-  const filename = `radio_${Date.now()}.mp3`;
+  const filename = `radio_${crypto.randomUUID()}.mp3`;
   const outputPath = path.join(OUTPUT_DIR, filename);
   fs.writeFileSync(outputPath, combined);
 

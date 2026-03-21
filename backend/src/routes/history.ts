@@ -12,15 +12,20 @@ router.get("/", authMiddleware, async (req: Request, res: Response) => {
     return;
   }
 
-  const result = await historyService.listHistory(
-    req.userId!,
-    parsed.data.page,
-    parsed.data.limit,
-    parsed.data.search,
-    parsed.data.model,
-    parsed.data.sort
-  );
-  res.json(result);
+  try {
+    const result = await historyService.listHistory(
+      req.userId!,
+      parsed.data.page,
+      parsed.data.limit,
+      parsed.data.search,
+      parsed.data.model,
+      parsed.data.sort
+    );
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "履歴の取得に失敗しました";
+    res.status(500).json({ error: message });
+  }
 });
 
 router.delete("/:id", authMiddleware, async (req: Request, res: Response) => {
