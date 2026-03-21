@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://RAILWAY_DOMAIN/api/:path*" },
-    { "source": "/output/:path*", "destination": "https://RAILWAY_DOMAIN/output/:path*" }
+    { "source": "/api/:path*", "destination": "https://radio-program-maker-production.up.railway.app/api/:path*" },
+    { "source": "/output/:path*", "destination": "https://radio-program-maker-production.up.railway.app/output/:path*" }
   ]
 }
