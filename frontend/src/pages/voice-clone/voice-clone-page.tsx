@@ -97,7 +97,7 @@ export function VoiceClonePage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".mp3,.wav"
+              accept=".mp3,.wav,.mp4"
               className="hidden"
               onChange={handleFileChange}
             />
@@ -116,7 +116,7 @@ export function VoiceClonePage() {
                       クリックして音声ファイルを選択
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      MP3 / WAV（5秒以上）
+                      MP3 / WAV / MP4（5秒以上）
                     </p>
                   </>
                 )}
