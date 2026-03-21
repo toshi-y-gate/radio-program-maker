@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && prisma migrate deploy && tsc",
-    "start": "node dist/index.js",
+    "build": "prisma generate && tsc",
+    "start": "prisma migrate deploy && node dist/index.js",
     "test": "jest --forceExit --detectOpenHandles",
     "test:unit": "jest --testPathPattern=tests/unit --forceExit",
     "test:integration": "jest --testPathPattern=tests/integration --forceExit --detectOpenHandles",
