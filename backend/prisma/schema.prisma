@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// スライス1: 認証基盤
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  password     String
+  displayName  String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  customVoices CustomVoice[]
+  histories    History[]
+}
+
+// スライス2-A: 音声管理
+model CustomVoice {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("creating") // "available" | "creating" | "failed"
+  sampleUrl String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// スライス4: 履歴管理
+model History {
+  id          String   @id @default(cuid())
+  script      String
+  speakers    String   // JSON array
+  model       String
+  filename    String
+  durationSec Float
+  settings    String   // JSON object
+  audioUrl    String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
