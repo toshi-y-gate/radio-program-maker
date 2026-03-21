@@ -1,0 +1,211 @@
+import { useRef, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+
+// ダミーデータ: 登録済みカスタムボイス
+const customVoices = [
+  {
+    id: "cv-1",
+    name: "田中太郎の声",
+    createdAt: "2026-03-15",
+    status: "available" as const,
+    audioUrl: "",
+  },
+  {
+    id: "cv-2",
+    name: "ナレーション用ボイス",
+    createdAt: "2026-03-18",
+    status: "available" as const,
+    audioUrl: "",
+  },
+  {
+    id: "cv-3",
+    name: "新キャラボイス",
+    createdAt: "2026-03-21",
+    status: "creating" as const,
+    audioUrl: "",
+  },
+]
+
+// ダミーデータ: プリセットボイス
+const presetVoices = [
+  { id: "jp-1", name: "はるか", language: "日本語", gender: "female" as const },
+  { id: "jp-2", name: "たくや", language: "日本語", gender: "male" as const },
+  { id: "jp-3", name: "さくら", language: "日本語", gender: "female" as const },
+  { id: "jp-4", name: "けんじ", language: "日本語", gender: "male" as const },
+  { id: "en-1", name: "Emily", language: "英語", gender: "female" as const },
+  { id: "en-2", name: "James", language: "英語", gender: "male" as const },
+  { id: "en-3", name: "Sophia", language: "英語", gender: "female" as const },
+  { id: "en-4", name: "William", language: "英語", gender: "male" as const },
+]
+
+export function VoiceClonePage() {
+  const [voiceName, setVoiceName] = useState("")
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUploadedFile(file)
+    }
+  }
+
+  const handleDropAreaClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold">ボイスクローン</h2>
+
+      {/* カスタムボイス作成セクション */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">カスタムボイス作成</CardTitle>
+          <CardDescription>
+            音声サンプルからオリジナルのボイスを作成します
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="voice-name">ボイス名</Label>
+            <Input
+              id="voice-name"
+              placeholder="例: ナレーション用ボイス"
+              value={voiceName}
+              onChange={(e) => setVoiceName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>音声サンプル</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".mp3,.wav"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Card
+              size="sm"
+              className="cursor-pointer border-dashed transition-colors hover:bg-muted/50"
+              onClick={handleDropAreaClick}
+            >
+              <CardContent className="flex flex-col items-center justify-center py-6 text-center">
+                <div className="mb-2 text-3xl">🎵</div>
+                {uploadedFile ? (
+                  <p className="text-sm font-medium">{uploadedFile.name}</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium">
+                      クリックして音声ファイルを選択
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      MP3 / WAV（5秒以上）
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Button
+            disabled={!voiceName.trim() || !uploadedFile}
+          >
+            ボイスを作成
+          </Button>
+
+          <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
+            <p>💡 作成時の注意事項:</p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              <li>5秒以上の音声サンプルが推奨されます</li>
+              <li>ノイズの少ないクリアな音声がより良い結果につながります</li>
+              <li>1人の話者のみが含まれる音声をご使用ください</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* 登録済みカスタムボイス一覧 */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">登録済みカスタムボイス</h3>
+        {customVoices.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                カスタムボイスはまだ登録されていません
+              </p>
+              <p className="text-xs text-muted-foreground">
+                上のフォームから音声サンプルをアップロードして作成できます
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {customVoices.map((voice) => (
+              <Card key={voice.id}>
+                <CardHeader>
+                  <CardTitle className="text-base">{voice.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-2">
+                    <span>{voice.createdAt}</span>
+                    <Badge
+                      variant={voice.status === "available" ? "default" : "secondary"}
+                    >
+                      {voice.status === "available" ? "利用可能" : "作成中"}
+                    </Badge>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center gap-2">
+                  {voice.status === "available" && (
+                    <audio controls className="h-8 w-full">
+                      <source src={voice.audioUrl} />
+                    </audio>
+                  )}
+                </CardContent>
+                <div className="px-4 pb-4">
+                  <Button variant="destructive" size="sm">
+                    削除
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* プリセットボイス一覧 */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">プリセットボイス</h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {presetVoices.map((voice) => (
+            <Card key={voice.id}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span>{voice.gender === "female" ? "👩" : "👨"}</span>
+                  <span>{voice.name}</span>
+                </CardTitle>
+                <CardDescription>
+                  <Badge variant="outline">{voice.language}</Badge>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <audio controls className="h-8 w-full">
+                  <source src="" />
+                </audio>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
