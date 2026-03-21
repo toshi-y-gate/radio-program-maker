@@ -15,6 +15,7 @@ def _make_cache_key(
     volume: float,
     pitch: int,
     emotion: str,
+    language_boost: str = "auto",
 ) -> str:
     """テキスト+設定からユニークなキャッシュキーを生成"""
     params = json.dumps(
@@ -26,6 +27,7 @@ def _make_cache_key(
             "volume": volume,
             "pitch": pitch,
             "emotion": emotion,
+            "language_boost": language_boost,
         },
         sort_keys=True,
         ensure_ascii=False,
@@ -41,9 +43,10 @@ def get_cached_audio(
     volume: float,
     pitch: int,
     emotion: str,
+    language_boost: str = "auto",
 ) -> bytes | None:
     """キャッシュから音声を取得。なければNoneを返す"""
-    key = _make_cache_key(text, voice_id, model, speed, volume, pitch, emotion)
+    key = _make_cache_key(text, voice_id, model, speed, volume, pitch, emotion, language_boost)
     cache_path = os.path.join(CACHE_DIR, f"{key}.mp3")
 
     if os.path.exists(cache_path):
@@ -61,9 +64,10 @@ def save_to_cache(
     volume: float,
     pitch: int,
     emotion: str,
+    language_boost: str = "auto",
 ) -> None:
     """音声をキャッシュに保存"""
-    key = _make_cache_key(text, voice_id, model, speed, volume, pitch, emotion)
+    key = _make_cache_key(text, voice_id, model, speed, volume, pitch, emotion, language_boost)
     cache_path = os.path.join(CACHE_DIR, f"{key}.mp3")
 
     with open(cache_path, "wb") as f:

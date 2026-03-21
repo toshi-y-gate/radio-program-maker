@@ -19,6 +19,54 @@ PRESET_VOICES = {
     "English_Insightful_Speaker": "英語 - インサイトフルスピーカー（男性）",
 }
 
+SUPPORTED_LANGUAGES = {
+    "auto": "自動検出",
+    "Japanese": "日本語",
+    "English": "英語",
+    "Chinese": "中国語",
+    "Korean": "韓国語",
+    "French": "フランス語",
+    "German": "ドイツ語",
+    "Spanish": "スペイン語",
+    "Italian": "イタリア語",
+    "Portuguese": "ポルトガル語",
+    "Russian": "ロシア語",
+    "Arabic": "アラビア語",
+    "Thai": "タイ語",
+    "Vietnamese": "ベトナム語",
+    "Indonesian": "インドネシア語",
+    "Malay": "マレー語",
+    "Hindi": "ヒンディー語",
+    "Turkish": "トルコ語",
+    "Filipino": "フィリピン語",
+    "Burmese": "ビルマ語",
+    "Dutch": "オランダ語",
+    "Polish": "ポーランド語",
+    "Swedish": "スウェーデン語",
+    "Norwegian": "ノルウェー語",
+    "Danish": "デンマーク語",
+    "Finnish": "フィンランド語",
+    "Greek": "ギリシャ語",
+    "Czech": "チェコ語",
+    "Romanian": "ルーマニア語",
+    "Hungarian": "ハンガリー語",
+    "Ukrainian": "ウクライナ語",
+    "Hebrew": "ヘブライ語",
+    "Persian": "ペルシア語",
+    "Bengali": "ベンガル語",
+    "Tamil": "タミル語",
+    "Telugu": "テルグ語",
+    "Urdu": "ウルドゥー語",
+    "Swahili": "スワヒリ語",
+    "Afrikaans": "アフリカーンス語",
+    "Croatian": "クロアチア語",
+}
+
+LANGUAGE_VOICE_RECOMMENDATIONS = {
+    "Japanese": ["Japanese_Whisper_Belle", "moss_audio_24875c4a-7be4-11f0-9359-4e72c55db738"],
+    "English": ["English_Graceful_Lady", "English_Persuasive_Man"],
+}
+
 AUDIO_SETTINGS = {
     "sample_rate": 44100,
     "bitrate": 128000,
@@ -67,5 +115,9 @@ SCRIPT_TEMPLATES = {
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output")
 BGM_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bgm")
+HISTORY_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "history")
+USERS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "users")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(BGM_DIR, exist_ok=True)
+os.makedirs(HISTORY_DIR, exist_ok=True)
+os.makedirs(USERS_DIR, exist_ok=True)
