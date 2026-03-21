@@ -1,0 +1,16 @@
+# 環境変数
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# 生成ファイル
+output/
+cache/
+bgm/
+
+# 一時ファイル
+.appgenius_temp/
+mockups/
