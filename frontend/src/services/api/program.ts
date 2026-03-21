@@ -1,26 +1,19 @@
 import type { GenerateRequest, GenerateResponse, VoicePreset } from "../../types"
+import { API_PATHS } from "../../types"
+import { get, post } from "./client"
 
-// @API_INTEGRATION
-export async function generateProgram(
-  _request: GenerateRequest,
-): Promise<GenerateResponse> {
-  throw new Error("API not implemented")
+export function generateProgram(request: GenerateRequest): Promise<GenerateResponse> {
+  return post<GenerateResponse>(API_PATHS.GENERATE, request)
 }
 
-// @API_INTEGRATION
-export async function getVoicePresets(): Promise<VoicePreset[]> {
-  throw new Error("API not implemented")
+export function getVoicePresets(): Promise<VoicePreset[]> {
+  return get<VoicePreset[]>(API_PATHS.VOICES_PRESET)
 }
 
-// @API_INTEGRATION
-export async function getCacheStats(): Promise<{
-  count: number
-  sizeMB: number
-}> {
-  throw new Error("API not implemented")
+export function getCacheStats(): Promise<{ count: number; sizeMB: number }> {
+  return get<{ count: number; sizeMB: number }>(API_PATHS.CACHE_STATS)
 }
 
-// @API_INTEGRATION
-export async function clearCache(): Promise<void> {
-  throw new Error("API not implemented")
+export function clearCache(): Promise<void> {
+  return post<void>(API_PATHS.CACHE_CLEAR)
 }

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
@@ -6,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Eye, EyeOff, Mic } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
 
 function validateEmail(email: string): boolean {
   return email.includes("@")
@@ -24,6 +26,9 @@ function getPasswordStrength(password: string): { score: number; label: string; 
 }
 
 export function LoginPage() {
+  const navigate = useNavigate()
+  const { error: authError, handleLogin: apiLogin, handleRegister: apiRegister } = useAuth()
+
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginShowPassword, setLoginShowPassword] = useState(false)
@@ -45,14 +50,28 @@ export function LoginPage() {
 
   const passwordStrength = getPasswordStrength(regPassword)
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoginLoading(true)
-    setTimeout(() => setLoginLoading(false), 2000)
+    try {
+      await apiLogin({ email: loginEmail, password: loginPassword })
+      navigate("/program")
+    } catch {
+      // error is set via useAuth
+    } finally {
+      setLoginLoading(false)
+    }
   }
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     setRegLoading(true)
-    setTimeout(() => setRegLoading(false), 2000)
+    try {
+      await apiRegister({ email: regEmail, password: regPassword, displayName: regName })
+      navigate("/program")
+    } catch {
+      // error is set via useAuth
+    } finally {
+      setRegLoading(false)
+    }
   }
 
   return (
@@ -114,6 +133,9 @@ export function LoginPage() {
                   <p className="text-sm text-destructive">パスワードは8文字以上で入力してください</p>
                 )}
               </div>
+              {authError && (
+                <p className="text-sm text-destructive">{authError}</p>
+              )}
               <Button
                 className="w-full"
                 onClick={handleLogin}
@@ -197,6 +219,9 @@ export function LoginPage() {
                   </div>
                 )}
               </div>
+              {authError && (
+                <p className="text-sm text-destructive">{authError}</p>
+              )}
               <Button
                 className="w-full"
                 onClick={handleRegister}

@@ -7,11 +7,11 @@ __pycache__/
 venv/
 
 # 生成ファイル
-output/
-cache/
-bgm/
-history/
-users/
+/output/
+/cache/
+/bgm/
+/history/
+/users/
 
 # フロントエンド
 frontend/node_modules/

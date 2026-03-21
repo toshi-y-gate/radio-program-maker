@@ -4,23 +4,26 @@ import type {
   CustomVoice,
   PresetVoice,
 } from "../../types"
+import { API_PATHS } from "../../types"
+import { get, post, del } from "./client"
 
-// @API_INTEGRATION
-export function createCustomVoice(_request: CreateVoiceRequest): Promise<CreateVoiceResponse> {
-  throw new Error("API not implemented")
+export function createCustomVoice(request: CreateVoiceRequest): Promise<CreateVoiceResponse> {
+  return post<CreateVoiceResponse>(API_PATHS.VOICES_CUSTOM, {
+    name: request.name,
+    sampleUrl: "",
+  })
 }
 
-// @API_INTEGRATION
 export function getCustomVoices(): Promise<CustomVoice[]> {
-  throw new Error("API not implemented")
+  return get<{ preset: PresetVoice[]; custom: CustomVoice[] }>(API_PATHS.VOICES).then(
+    (res) => res.custom,
+  )
 }
 
-// @API_INTEGRATION
-export function deleteCustomVoice(_id: string): Promise<void> {
-  throw new Error("API not implemented")
+export function deleteCustomVoice(id: string): Promise<void> {
+  return del<void>(API_PATHS.VOICES_CUSTOM_DELETE.replace(":id", id))
 }
 
-// @API_INTEGRATION
 export function getPresetVoices(): Promise<PresetVoice[]> {
-  throw new Error("API not implemented")
+  return get<PresetVoice[]>(API_PATHS.VOICES_PRESET)
 }

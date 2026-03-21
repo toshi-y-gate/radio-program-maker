@@ -1,21 +1,19 @@
 import type { LoginRequest, RegisterRequest, AuthResponse, User } from "../../types"
+import { API_PATHS } from "../../types"
+import { get, post } from "./client"
 
-// @API_INTEGRATION
-export function login(_request: LoginRequest): Promise<AuthResponse> {
-  throw new Error("API not implemented")
+export function login(request: LoginRequest): Promise<AuthResponse> {
+  return post<AuthResponse>(API_PATHS.AUTH_LOGIN, request)
 }
 
-// @API_INTEGRATION
-export function register(_request: RegisterRequest): Promise<AuthResponse> {
-  throw new Error("API not implemented")
+export function register(request: RegisterRequest): Promise<AuthResponse> {
+  return post<AuthResponse>(API_PATHS.AUTH_REGISTER, request)
 }
 
-// @API_INTEGRATION
 export function logout(): Promise<void> {
-  throw new Error("API not implemented")
+  return post<void>(API_PATHS.AUTH_LOGOUT)
 }
 
-// @API_INTEGRATION
 export function getCurrentUser(): Promise<User> {
-  throw new Error("API not implemented")
+  return get<User>(API_PATHS.AUTH_ME)
 }

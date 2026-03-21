@@ -1,4 +1,7 @@
 import { useState, useMemo } from "react"
+import { useGenerate } from "@/hooks/useGenerate"
+import { useVoicePresets } from "@/hooks/useVoicePresets"
+import type { Emotion, TTSModel, BGMInsertMode } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -14,8 +17,6 @@ import {
 import { Slider } from "@/components/ui/slider"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-
-// --- ダミーデータ ---
 
 const TEMPLATES = [
   {
@@ -57,14 +58,6 @@ const TEMPLATES = [
     description: "自由にスクリプトを作成",
     script: "",
   },
-] as const
-
-const PRESET_VOICES = [
-  { id: "male-1", label: "男性ボイス A" },
-  { id: "male-2", label: "男性ボイス B" },
-  { id: "female-1", label: "女性ボイス A" },
-  { id: "female-2", label: "女性ボイス B" },
-  { id: "narrator", label: "ナレーター" },
 ] as const
 
 const EMOTIONS = [
@@ -117,22 +110,21 @@ export function ProgramPage() {
   const [voiceAssignments, setVoiceAssignments] = useState<Record<string, string>>({})
 
   // 設定
-  const [model, setModel] = useState("speech-2.8-hd")
+  const [model, setModel] = useState<TTSModel>("speech-2.8-hd")
   const [speed, setSpeed] = useState([1.0])
   const [volume, setVolume] = useState([1.0])
   const [pitch, setPitch] = useState([0])
-  const [emotion, setEmotion] = useState("neutral")
+  const [emotion, setEmotion] = useState<Emotion>("neutral")
   const [turboPreview, setTurboPreview] = useState(false)
 
   // BGM
   const [bgmFile, setBgmFile] = useState<File | null>(null)
-  const [bgmMode, setBgmMode] = useState("background")
+  const [bgmMode, setBgmMode] = useState<BGMInsertMode>("background")
   const [bgmVolume, setBgmVolume] = useState([0.3])
 
-  // 生成状態
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [resultAudioUrl, setResultAudioUrl] = useState<string | null>(null)
+  // フック
+  const { isGenerating, progress, resultAudioUrl, error, generate } = useGenerate()
+  const { presets: voicePresets, loading: presetsLoading } = useVoicePresets()
 
   // 話者検出
   const speakers = useMemo(() => detectSpeakers(script), [script])
@@ -146,24 +138,28 @@ export function ProgramPage() {
     }
   }
 
-  // ダミー生成処理
+  // 生成処理
   function handleGenerate() {
-    setIsGenerating(true)
-    setProgress(0)
-    setResultAudioUrl(null)
+    const effectiveModel: TTSModel = turboPreview ? "speech-2.8-turbo" : model
+    const defaultVoiceId = voicePresets.length > 0 ? voicePresets[0].id : ""
 
-    // ダミーのプログレス
-    let p = 0
-    const interval = setInterval(() => {
-      p += 10
-      setProgress(p)
-      if (p >= 100) {
-        clearInterval(interval)
-        setIsGenerating(false)
-        // ダミーの音声URL（無音のデータURL）
-        setResultAudioUrl("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGFOYQAAAAA=")
-      }
-    }, 300)
+    generate({
+      script,
+      speakers: speakers.map((s) => ({
+        speaker: s,
+        voiceId: voiceAssignments[s] ?? defaultVoiceId,
+      })),
+      settings: {
+        speed: speed[0],
+        volume: volume[0],
+        pitch: pitch[0],
+        emotion,
+        model: effectiveModel,
+      },
+      bgm: bgmFile
+        ? { insertMode: bgmMode, volume: bgmVolume[0] }
+        : undefined,
+    })
   }
 
   return (
@@ -238,31 +234,35 @@ export function ProgramPage() {
                 <CardTitle className="text-lg">ボイス割り当て</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {speakers.map((speaker) => (
-                  <div key={speaker} className="flex items-center gap-4">
-                    <Label className="w-32 shrink-0">{speaker}</Label>
-                    <Select
-                      value={voiceAssignments[speaker] ?? PRESET_VOICES[0].id}
-                      onValueChange={(val) =>
-                        setVoiceAssignments((prev) => ({
-                          ...prev,
-                          [speaker]: val as string,
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="ボイスを選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRESET_VOICES.map((voice) => (
-                          <SelectItem key={voice.id} value={voice.id}>
-                            {voice.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
+                {presetsLoading ? (
+                  <p className="text-sm text-muted-foreground">ボイスプリセット読み込み中...</p>
+                ) : (
+                  speakers.map((speaker) => (
+                    <div key={speaker} className="flex items-center gap-4">
+                      <Label className="w-32 shrink-0">{speaker}</Label>
+                      <Select
+                        value={voiceAssignments[speaker] ?? (voicePresets[0]?.id ?? "")}
+                        onValueChange={(val) =>
+                          setVoiceAssignments((prev) => ({
+                            ...prev,
+                            [speaker]: val as string,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="ボイスを選択" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {voicePresets.map((voice) => (
+                            <SelectItem key={voice.id} value={voice.id}>
+                              {voice.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           )}
@@ -285,6 +285,15 @@ export function ProgramPage() {
                   <ProgressLabel>生成中</ProgressLabel>
                   <ProgressValue />
                 </Progress>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* エラー表示 */}
+          {error && !isGenerating && (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-destructive">{error}</p>
               </CardContent>
             </Card>
           )}
@@ -320,7 +329,7 @@ export function ProgramPage() {
               {/* モデル選択 */}
               <div className="space-y-2">
                 <Label>モデル</Label>
-                <Select value={model} onValueChange={(val) => setModel(val as string)}>
+                <Select value={model} onValueChange={(val) => setModel(val as TTSModel)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -383,7 +392,7 @@ export function ProgramPage() {
               {/* 感情 */}
               <div className="space-y-2">
                 <Label>感情</Label>
-                <Select value={emotion} onValueChange={(val) => setEmotion(val as string)}>
+                <Select value={emotion} onValueChange={(val) => setEmotion(val as Emotion)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -456,7 +465,7 @@ export function ProgramPage() {
               {/* 挿入モード */}
               <div className="space-y-2">
                 <Label>挿入モード</Label>
-                <Select value={bgmMode} onValueChange={(val) => setBgmMode(val as string)}>
+                <Select value={bgmMode} onValueChange={(val) => setBgmMode(val as BGMInsertMode)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>

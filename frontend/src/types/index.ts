@@ -14,6 +14,7 @@ export type VoicePreset = {
 }
 
 export type HistoryItem = {
+  id: string
   timestamp: string
   script: string
   speakers: string[]
