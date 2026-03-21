@@ -1,5 +1,11 @@
+import os
+import json
 import requests
 from core.config import MINIMAX_API_KEY, MINIMAX_API_URL, DEFAULT_MODEL, AUDIO_SETTINGS
+
+MINIMAX_UPLOAD_URL = "https://api.minimax.io/v1/files/upload"
+MINIMAX_CLONE_URL = "https://api.minimax.io/v1/voice_clone"
+CUSTOM_VOICES_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "custom_voices.json")
 
 
 def text_to_speech(
@@ -46,6 +52,73 @@ def text_to_speech(
     audio_bytes = bytes.fromhex(audio_hex)
 
     return audio_bytes
+
+
+def upload_voice_file(file_path: str) -> str:
+    """音声ファイルをMiniMax APIにアップロードし、file_idを返す"""
+    headers = {"Authorization": f"Bearer {MINIMAX_API_KEY}"}
+    with open(file_path, "rb") as f:
+        response = requests.post(
+            MINIMAX_UPLOAD_URL,
+            headers=headers,
+            data={"purpose": "voice_clone"},
+            files={"file": f},
+            timeout=60,
+        )
+    response.raise_for_status()
+    data = response.json()
+    file_id = data.get("file", {}).get("file_id")
+    if not file_id:
+        raise RuntimeError(f"ファイルアップロード失敗: {data}")
+    return file_id
+
+
+def clone_voice(file_id: str, voice_id: str, demo_text: str = "こんにちは、ボイスクローンのテストです。") -> bytes:
+    """ボイスクローンを作成し、デモ音声を返す"""
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+    }
+    payload = {
+        "file_id": file_id,
+        "voice_id": voice_id,
+        "text": demo_text,
+        "model": DEFAULT_MODEL,
+    }
+    response = requests.post(MINIMAX_CLONE_URL, headers=headers, json=payload, timeout=120)
+    response.raise_for_status()
+    data = response.json()
+
+    if data.get("base_resp", {}).get("status_code", -1) != 0:
+        error_msg = data.get("base_resp", {}).get("status_msg", "Unknown error")
+        raise RuntimeError(f"ボイスクローン失敗: {error_msg}")
+
+    audio_hex = data["data"]["audio"]
+    return bytes.fromhex(audio_hex)
+
+
+def load_custom_voices() -> dict[str, str]:
+    """保存済みカスタムボイスを読み込む {voice_id: display_name}"""
+    if not os.path.exists(CUSTOM_VOICES_FILE):
+        return {}
+    with open(CUSTOM_VOICES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_custom_voice(voice_id: str, display_name: str) -> None:
+    """カスタムボイスを保存する"""
+    voices = load_custom_voices()
+    voices[voice_id] = display_name
+    with open(CUSTOM_VOICES_FILE, "w", encoding="utf-8") as f:
+        json.dump(voices, f, ensure_ascii=False, indent=2)
+
+
+def delete_custom_voice(voice_id: str) -> None:
+    """カスタムボイスを削除する"""
+    voices = load_custom_voices()
+    voices.pop(voice_id, None)
+    with open(CUSTOM_VOICES_FILE, "w", encoding="utf-8") as f:
+        json.dump(voices, f, ensure_ascii=False, indent=2)
 
 
 def test_connection() -> dict:

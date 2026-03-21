@@ -5,8 +5,16 @@ import streamlit as st
 from datetime import datetime
 from pydub import AudioSegment
 
-from core.config import MINIMAX_API_KEY, PRESET_VOICES, BGM_DIR, OUTPUT_DIR
-from core.tts import text_to_speech, test_connection
+from core.config import MINIMAX_API_KEY, PRESET_VOICES, BGM_DIR, OUTPUT_DIR, SCRIPT_TEMPLATES
+from core.tts import (
+    text_to_speech,
+    test_connection,
+    upload_voice_file,
+    clone_voice,
+    load_custom_voices,
+    save_custom_voice,
+    delete_custom_voice,
+)
 from core.script_parser import parse_script, get_speakers
 from core.audio_mixer import (
     combine_audio_segments,
@@ -24,6 +32,14 @@ st.set_page_config(
 
 st.title("🎙️ ラジオ番組メーカー")
 st.caption("スクリプトを入力して、AIボイスでラジオ番組を作成")
+
+# --- ボイス選択肢の構築（プリセット＋カスタム） ---
+custom_voices = load_custom_voices()
+all_voices = {}
+for vid, name in PRESET_VOICES.items():
+    all_voices[vid] = name
+for vid, name in custom_voices.items():
+    all_voices[vid] = f"🎤 {name}（クローン）"
 
 # --- サイドバー ---
 with st.sidebar:
@@ -49,6 +65,13 @@ with st.sidebar:
         ["speech-2.8-hd", "speech-2.8-turbo", "speech-2.6-hd", "speech-2.6-turbo"],
         index=0,
         help="HD = 高品質、Turbo = 高速",
+    )
+
+    # F2-2: Turboプレビュー
+    use_turbo_preview = st.checkbox(
+        "⚡ Turboプレビューモード",
+        value=False,
+        help="プレビュー時はTurboモデル（高速・低コスト）で生成。本番生成時にHDモデルを使用。",
     )
 
     # 音声設定
@@ -107,9 +130,10 @@ with st.sidebar:
             st.success(f"{deleted}件削除しました")
 
 # --- メインエリア ---
-tab1, tab2 = st.tabs(["📝 番組作成", "📖 使い方"])
+tab1, tab2, tab3 = st.tabs(["📝 番組作成", "🎤 ボイスクローン", "📖 使い方"])
 
-with tab2:
+# === タブ3: 使い方 ===
+with tab3:
     st.markdown("""
     ### スクリプトの書き方
 
@@ -139,18 +163,116 @@ with tab2:
     - 最大4名まで対応
     - 各話者に異なるボイスを割り当てられます
     - プリセットボイスまたはクローンボイスが使用可能
+
+    ### Turboプレビューモード
+    - サイドバーで有効にすると、プレビュー時はTurbo（高速・低コスト）で生成
+    - 「HD本番生成」ボタンで高品質版を一発で再生成できます
     """)
 
+# === タブ2: ボイスクローン ===
+with tab2:
+    st.subheader("🎤 ボイスクローン")
+    st.markdown("音声サンプルをアップロードして、カスタムボイスを作成できます。")
+
+    st.info("📋 音声サンプルの要件: MP3/M4A/WAV形式、10秒〜5分、20MB以下")
+
+    clone_file = st.file_uploader(
+        "音声サンプルをアップロード",
+        type=["mp3", "m4a", "wav"],
+        key="clone_upload",
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        clone_name = st.text_input(
+            "ボイス名（表示用）",
+            placeholder="例: 田中さんの声",
+        )
+    with col2:
+        clone_id = st.text_input(
+            "ボイスID（英数字）",
+            placeholder="例: tanaka_voice_01",
+            help="英数字とアンダースコアのみ。アカウント内で一意である必要があります。",
+        )
+
+    demo_text = st.text_input(
+        "試聴テキスト",
+        value="こんにちは、ボイスクローンのテストです。",
+    )
+
+    if st.button("🎙️ ボイスクローンを作成", type="primary", disabled=not (clone_file and clone_name and clone_id)):
+        if not MINIMAX_API_KEY:
+            st.error("APIキーが設定されていません。`.env` ファイルを確認してください。")
+        else:
+            with st.spinner("音声ファイルをアップロード中..."):
+                try:
+                    # 一時ファイルに保存
+                    temp_path = os.path.join(BGM_DIR, f"_temp_clone_{clone_file.name}")
+                    with open(temp_path, "wb") as f:
+                        f.write(clone_file.getbuffer())
+
+                    # アップロード
+                    file_id = upload_voice_file(temp_path)
+
+                    # クリーンアップ
+                    os.remove(temp_path)
+
+                    st.info("ボイスクローンを作成中...")
+                    audio_bytes = clone_voice(file_id, clone_id, demo_text)
+
+                    # カスタムボイスとして保存
+                    save_custom_voice(clone_id, clone_name)
+
+                    st.success(f"ボイスクローン「{clone_name}」を作成しました！")
+                    st.audio(io.BytesIO(audio_bytes), format="audio/mp3")
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"エラー: {e}")
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+
+    # 登録済みカスタムボイス一覧
+    if custom_voices:
+        st.divider()
+        st.subheader("📋 登録済みカスタムボイス")
+        for vid, vname in custom_voices.items():
+            col_name, col_id, col_del = st.columns([3, 3, 1])
+            with col_name:
+                st.write(f"**{vname}**")
+            with col_id:
+                st.code(vid)
+            with col_del:
+                if st.button("🗑️", key=f"del_{vid}"):
+                    delete_custom_voice(vid)
+                    st.rerun()
+
+# === タブ1: 番組作成 ===
 with tab1:
-    # スクリプト入力
-    sample_script = """[ホスト] こんにちは！「テックラジオ」のお時間です。パーソナリティの田中です。
+    # F2-3: テンプレート選択
+    st.subheader("📄 テンプレート")
+    template_names = ["カスタム（自由入力）"] + list(SCRIPT_TEMPLATES.keys())
+    selected_template = st.selectbox(
+        "テンプレートを選択",
+        template_names,
+        index=0,
+        label_visibility="collapsed",
+    )
+
+    if selected_template != "カスタム（自由入力）":
+        tmpl = SCRIPT_TEMPLATES[selected_template]
+        st.caption(f"💡 {tmpl['description']}")
+        default_script = tmpl["script"]
+    else:
+        default_script = """[ホスト] こんにちは！「テックラジオ」のお時間です。パーソナリティの田中です。
 [ゲスト] ゲストの佐藤です。今日もよろしくお願いします。
 [ホスト] 今日のテーマは「AIと音声技術の未来」です。佐藤さん、最近のAI音声技術、すごいですよね。
 [ゲスト] 本当にそうですね。わずか5秒の音声サンプルから、その人そっくりの声を再現できるんですから。"""
 
+    # スクリプト入力
     script_text = st.text_area(
         "スクリプトを入力",
-        value=sample_script,
+        value=default_script,
         height=250,
         placeholder="[話者名] セリフを入力してください...",
     )
@@ -167,7 +289,7 @@ with tab1:
         if speakers:
             st.subheader("🎤 話者ごとのボイス割り当て")
 
-            voice_options = list(PRESET_VOICES.items())
+            voice_options = list(all_voices.items())
             speaker_voices = {}
 
             cols = st.columns(min(len(speakers), 4))
@@ -177,7 +299,7 @@ with tab1:
                     selected = st.selectbox(
                         f"{speaker} のボイス",
                         options=[vid for vid, _ in voice_options],
-                        format_func=lambda x: PRESET_VOICES[x],
+                        format_func=lambda x: all_voices[x],
                         key=f"voice_{speaker}",
                         index=min(i, len(voice_options) - 1),
                         label_visibility="collapsed",
@@ -193,11 +315,46 @@ with tab1:
 
             st.divider()
 
-            # 生成ボタン
-            if st.button("🚀 音声を生成する", type="primary", use_container_width=True):
+            # F2-2: Turboプレビュー対応の生成ボタン
+            if use_turbo_preview:
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
+                    preview_clicked = st.button(
+                        "⚡ Turboプレビュー",
+                        use_container_width=True,
+                        help="Turboモデルで高速プレビュー生成",
+                    )
+                with btn_col2:
+                    hd_clicked = st.button(
+                        "🎬 HD本番生成",
+                        type="primary",
+                        use_container_width=True,
+                        help="HDモデルで高品質生成",
+                    )
+                generate_clicked = preview_clicked or hd_clicked
+                if preview_clicked:
+                    gen_model = model.replace("-hd", "-turbo") if "-hd" in model else model
+                elif hd_clicked:
+                    gen_model = model.replace("-turbo", "-hd") if "-turbo" in model else model
+                else:
+                    gen_model = model
+            else:
+                generate_clicked = st.button(
+                    "🚀 音声を生成する", type="primary", use_container_width=True
+                )
+                gen_model = model
+
+            if generate_clicked:
                 if not MINIMAX_API_KEY:
                     st.error("APIキーが設定されていません。`.env` ファイルを確認してください。")
                 else:
+                    # モデル表示
+                    if use_turbo_preview:
+                        if preview_clicked:
+                            st.info(f"⚡ Turboプレビューモード（モデル: {gen_model}）")
+                        else:
+                            st.info(f"🎬 HD本番生成モード（モデル: {gen_model}）")
+
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     audio_segments = []
@@ -214,7 +371,7 @@ with tab1:
                         cached = get_cached_audio(
                             text=line.text,
                             voice_id=voice_id,
-                            model=model,
+                            model=gen_model,
                             speed=speed,
                             volume=volume,
                             pitch=pitch,
@@ -235,7 +392,7 @@ with tab1:
                                 audio_bytes = text_to_speech(
                                     text=line.text,
                                     voice_id=voice_id,
-                                    model=model,
+                                    model=gen_model,
                                     speed=speed,
                                     volume=volume,
                                     pitch=pitch,
@@ -246,7 +403,7 @@ with tab1:
                                     audio_bytes=audio_bytes,
                                     text=line.text,
                                     voice_id=voice_id,
-                                    model=model,
+                                    model=gen_model,
                                     speed=speed,
                                     volume=volume,
                                     pitch=pitch,
@@ -309,6 +466,7 @@ with tab1:
                         st.info(
                             f"📊 音声長さ: {duration_sec:.1f}秒 | "
                             f"話者数: {len(speakers)}名 | "
+                            f"モデル: {gen_model} | "
                             f"保存先: {filepath}"
                         )
 

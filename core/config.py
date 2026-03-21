@@ -26,6 +26,45 @@ AUDIO_SETTINGS = {
     "channel": 1,
 }
 
+SCRIPT_TEMPLATES = {
+    "ニュース番組": {
+        "description": "2人構成のニュース番組（アンカー＋リポーター）",
+        "script": """[アンカー] こんばんは。ニュースの時間です。本日のトップニュースをお伝えします。
+[リポーター] 最初のニュースです。本日、新しいAI技術に関する国際会議が開幕しました。
+[アンカー] 世界各国から研究者が集まっているそうですね。
+[リポーター] はい、50カ国以上から参加者が集まり、最新の研究成果が発表されています。
+[アンカー] 続いてのニュースです。""",
+    },
+    "対談・トーク": {
+        "description": "2人の掛け合いトーク番組",
+        "script": """[ホスト] 皆さんこんにちは！今日のゲストをお迎えしましょう。
+[ゲスト] よろしくお願いします！今日は楽しみにしてきました。
+[ホスト] 早速ですが、最近ハマっていることはありますか？
+[ゲスト] 実は最近、朝の散歩にハマっていて。毎朝5時に起きて歩いています。
+[ホスト] 5時！それは早いですね。何かきっかけがあったんですか？
+[ゲスト] 健康診断の結果が少し気になって、運動を始めたんです。""",
+    },
+    "英会話レッスン": {
+        "description": "先生と生徒の英会話練習",
+        "script": """[Teacher] Good morning! Today we're going to practice ordering food at a restaurant.
+[Student] Sounds great! I always get nervous when ordering in English.
+[Teacher] Don't worry, let's start with something simple. Imagine you're at a cafe.
+[Student] OK, I'm ready.
+[Teacher] I'll be the waiter. Good afternoon, welcome! What can I get for you?
+[Student] Hi, can I have a coffee and a sandwich, please?
+[Teacher] Of course! What kind of sandwich would you like?
+[Student] I'd like a chicken sandwich, please.""",
+    },
+    "一人語り・ナレーション": {
+        "description": "1人のナレーターによる語り",
+        "script": """[ナレーター] 皆さん、こんにちは。今日のテーマは「朝の過ごし方」です。
+[ナレーター] 朝の時間をどう過ごすかで、一日の質が大きく変わると言われています。
+[ナレーター] まず大切なのは、決まった時間に起きること。
+[ナレーター] そして、起きたらまずコップ一杯の水を飲みましょう。
+[ナレーター] 簡単なストレッチをするだけでも、体が目覚めますよ。""",
+    },
+}
+
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output")
 BGM_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "bgm")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
