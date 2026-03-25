@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ffmpegPath = require("ffmpeg-static") as string;
 import { prisma } from "../db";
 import { config } from "../config";
 
@@ -43,7 +45,7 @@ function prepareAudioForClone(filePath: string): string {
 
   // Convert to MP3, max 2 minutes, mono, 128kbps (keeps file under 2MB)
   execSync(
-    `ffmpeg -i "${filePath}" -t 120 -ac 1 -ab 128k -ar 44100 -y "${outputPath}" 2>/dev/null`,
+    `"${ffmpegPath}" -i "${filePath}" -t 120 -ac 1 -ab 128k -ar 44100 -y "${outputPath}" 2>/dev/null`,
     { timeout: 60000 }
   );
 
@@ -52,7 +54,7 @@ function prepareAudioForClone(filePath: string): string {
     // If still too large, reduce to 60 seconds
     const smallerPath = path.join(dir, `clone_small_${Date.now()}.mp3`);
     execSync(
-      `ffmpeg -i "${filePath}" -t 60 -ac 1 -ab 64k -ar 22050 -y "${smallerPath}" 2>/dev/null`,
+      `"${ffmpegPath}" -i "${filePath}" -t 60 -ac 1 -ab 64k -ar 22050 -y "${smallerPath}" 2>/dev/null`,
       { timeout: 60000 }
     );
     fs.unlinkSync(outputPath);
