@@ -41,9 +41,8 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Temporarily disabled for debugging
-// app.use("/api/auth/login", authLimiter);
-// app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
 
 app.get("/health", async (_req, res) => {
   try {
@@ -54,49 +53,21 @@ app.get("/health", async (_req, res) => {
   }
 });
 
+// Neon DB cold start対策: API呼び出し前にDB接続を保証
+app.use("/api", async (_req, _res, next) => {
+  try {
+    await ensureDbConnection();
+  } catch {
+    // 接続失敗してもルートハンドラに委ねる
+  }
+  next();
+});
+
 app.use(
   "/output",
   authMiddleware,
   express.static(path.resolve(__dirname, "../output"))
 );
-
-// Temporary debug endpoint - REMOVE after diagnosis
-app.post("/debug/login-test", async (req, res) => {
-  const steps: string[] = [];
-  try {
-    steps.push("1:start");
-    const { prisma } = await import("./db");
-    const bcrypt = await import("bcryptjs");
-    const jwt = await import("jsonwebtoken");
-    const { config } = await import("./config");
-
-    steps.push("2:imports");
-    const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
-    steps.push("3:findUser:" + !!user);
-
-    if (!user) { res.json({ steps, error: "user not found" }); return; }
-
-    const valid = await bcrypt.default.compare(password, user.password);
-    steps.push("4:bcrypt:" + valid);
-
-    if (!valid) { res.json({ steps, error: "invalid password" }); return; }
-
-    const token = jwt.default.sign({ userId: user.id }, config.jwtSecret, { expiresIn: "7d" });
-    steps.push("5:token:" + token.substring(0, 10));
-
-    const result = { user: { email: user.email, displayName: user.displayName }, token };
-    steps.push("6:beforeJson");
-    res.json({ steps, result });
-    steps.push("7:afterJson");
-  } catch (err) {
-    res.json({
-      steps,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack?.split("\n").slice(0, 3) : undefined,
-    });
-  }
-});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/voices", voiceRoutes);
@@ -111,7 +82,7 @@ app.use(
     res: express.Response,
     _next: express.NextFunction
   ) => {
-    console.error("Unhandled error:", err.message, err.stack);
+    console.error("Unhandled error:", err.message);
     res.status(500).json({ error: "内部サーバーエラーが発生しました" });
   }
 );
