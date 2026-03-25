@@ -128,12 +128,22 @@ async function callMinimaxTTS(
     throw new Error("MiniMax API returned no audio data");
   }
 
-  // Auto-detect hex vs base64 encoding
-  const isHex = /^[0-9a-fA-F]+$/.test(audioData.substring(0, 100));
-  const buf = isHex
-    ? Buffer.from(audioData, "hex")
-    : Buffer.from(audioData, "base64");
-  console.log(`[tts] Audio decoded: ${isHex ? "hex" : "base64"}, ${buf.length} bytes`);
+  // MiniMax T2A v2 returns hex-encoded audio
+  // Check if it starts with valid MP3 hex signature (fff3, fffa, fffb, 4944)
+  const firstBytes = audioData.substring(0, 8).toLowerCase();
+  console.log(`[tts] Audio data: length=${audioData.length}, first8=${firstBytes}`);
+
+  // Try hex decode first, check if result is valid MP3
+  const hexBuf = Buffer.from(audioData, "hex");
+  const b64Buf = Buffer.from(audioData, "base64");
+
+  // MP3 starts with 0xff or 0x49 (ID3), pick the one that looks right
+  const hexHead = hexBuf.length > 0 ? hexBuf[0] : 0;
+  const b64Head = b64Buf.length > 0 ? b64Buf[0] : 0;
+
+  const useHex = hexHead === 0xff || hexHead === 0x49;
+  const buf = useHex ? hexBuf : b64Buf;
+  console.log(`[tts] Decoded as ${useHex ? "hex" : "base64"}: ${buf.length} bytes, head=0x${buf.slice(0, 2).toString("hex")}`);
   return buf;
 }
 

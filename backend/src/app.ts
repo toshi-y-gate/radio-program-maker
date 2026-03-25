@@ -58,6 +58,38 @@ app.get("/health", async (_req, res) => {
   }
 });
 
+// Debug: MiniMax TTS test endpoint
+app.get("/debug/tts-test", async (_req, res) => {
+  try {
+    const { config } = await import("./config");
+    const resp = await fetch("https://api.minimax.io/v1/t2a_v2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.minimaxApiKey}` },
+      body: JSON.stringify({
+        model: "speech-2.8-hd", text: "テスト音声です。", stream: false,
+        language_boost: "Japanese",
+        voice_setting: { voice_id: "male-qn-qingse", speed: 1.0, vol: 1.0, pitch: 0, emotion: "neutral" },
+        audio_setting: { format: "mp3", sample_rate: 32000 },
+      }),
+    });
+    const data = await resp.json() as { base_resp?: { status_code: number }; data?: { audio?: string } };
+    const audio = data.data?.audio || "";
+    const hexBuf = Buffer.from(audio, "hex");
+    const b64Buf = Buffer.from(audio, "base64");
+    res.json({
+      status: data.base_resp?.status_code,
+      audioLen: audio.length,
+      first40: audio.substring(0, 40),
+      hexBufSize: hexBuf.length,
+      b64BufSize: b64Buf.length,
+      hexHead: hexBuf.slice(0, 4).toString("hex"),
+      b64Head: b64Buf.slice(0, 4).toString("hex"),
+    });
+  } catch (e) {
+    res.json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // Neon DB cold start対策: API呼び出し前にDB接続を保証
 app.use("/api", async (_req, _res, next) => {
   try {
