@@ -41,8 +41,9 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
+// Temporarily disabled for debugging
+// app.use("/api/auth/login", authLimiter);
+// app.use("/api/auth/register", authLimiter);
 
 app.get("/health", async (_req, res) => {
   try {
