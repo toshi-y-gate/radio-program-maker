@@ -146,7 +146,7 @@ export function VoiceClonePage() {
                       クリックまたはドラッグ&ドロップで音声ファイルを選択
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      MP3 / WAV / MP4 / M4A（5秒以上）
+                      MP3 / WAV / MP4 / M4A（5秒以上・最大50MB）
                     </p>
                   </>
                 )}
