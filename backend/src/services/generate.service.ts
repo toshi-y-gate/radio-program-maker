@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ffmpegPath = require("ffmpeg-static") as string;
 import { config } from "../config";
 import { prisma } from "../db";
 
@@ -159,12 +162,26 @@ async function callMinimaxTTS(
   return buf;
 }
 
+function mixBgm(
+  speechPath: string,
+  bgmFilePath: string,
+  bgmVolume: number,
+  outputPath: string
+): void {
+  // Overlay BGM at specified volume, match speech duration
+  execSync(
+    `"${ffmpegPath}" -i "${speechPath}" -i "${bgmFilePath}" -filter_complex "[1:a]aloop=loop=-1:size=2e+09,volume=${bgmVolume}[bgm];[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[out]" -map "[out]" -y "${outputPath}" 2>/dev/null`,
+    { timeout: 120000 }
+  );
+}
+
 export async function generateRadio(
   userId: string,
   script: string,
   speakers: Speaker[],
   settings: Settings,
-  _bgm?: BgmOptions
+  bgmOptions?: BgmOptions,
+  bgmFilePath?: string
 ): Promise<{ audioUrl: string; durationSec: number; speakers: string[] }> {
   ensureDir(CACHE_DIR);
   ensureDir(OUTPUT_DIR);
@@ -203,7 +220,24 @@ export async function generateRadio(
   const combined = Buffer.concat(audioBuffers);
   const filename = `radio_${crypto.randomUUID()}.mp3`;
   const outputPath = path.join(OUTPUT_DIR, filename);
-  fs.writeFileSync(outputPath, combined);
+
+  if (bgmFilePath && bgmOptions && fs.existsSync(bgmFilePath)) {
+    // Write speech to temp file, then mix with BGM
+    const tempSpeechPath = path.join(OUTPUT_DIR, `temp_speech_${Date.now()}.mp3`);
+    fs.writeFileSync(tempSpeechPath, combined);
+    try {
+      mixBgm(tempSpeechPath, bgmFilePath, bgmOptions.volume, outputPath);
+      console.log("[generate] BGM mixed successfully");
+    } catch (err) {
+      console.error("[generate] BGM mix failed, using speech only:", err instanceof Error ? err.message : err);
+      fs.writeFileSync(outputPath, combined);
+    } finally {
+      if (fs.existsSync(tempSpeechPath)) fs.unlinkSync(tempSpeechPath);
+      if (fs.existsSync(bgmFilePath)) fs.unlinkSync(bgmFilePath);
+    }
+  } else {
+    fs.writeFileSync(outputPath, combined);
+  }
 
   console.log(`[generate] Total: ${audioBuffers.length} chunks, ${combined.length} bytes`);
   const estimatedDuration = Math.round(combined.length / 4000);

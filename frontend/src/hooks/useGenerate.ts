@@ -9,7 +9,7 @@ export function useGenerate() {
   const [error, setError] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const generate = useCallback(async (request: GenerateRequest) => {
+  const generate = useCallback(async (request: GenerateRequest, bgmFile?: File) => {
     setIsGenerating(true)
     setProgress(0)
     setResultAudioUrl(null)
@@ -23,7 +23,7 @@ export function useGenerate() {
     }, 500)
 
     try {
-      const response = await generateProgram(request)
+      const response = await generateProgram(request, bgmFile)
       setProgress(100)
       setResultAudioUrl(response.audioUrl)
     } catch (err) {

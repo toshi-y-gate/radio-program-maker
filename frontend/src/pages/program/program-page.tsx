@@ -183,7 +183,7 @@ export function ProgramPage() {
       bgm: bgmFile
         ? { insertMode: bgmMode, volume: bgmVolume[0] }
         : undefined,
-    })
+    }, bgmFile || undefined)
   }
 
   return (
