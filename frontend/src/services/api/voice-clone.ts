@@ -5,13 +5,13 @@ import type {
   PresetVoice,
 } from "../../types"
 import { API_PATHS } from "../../types"
-import { get, post, del } from "./client"
+import { get, postFormData, del } from "./client"
 
 export function createCustomVoice(request: CreateVoiceRequest): Promise<CreateVoiceResponse> {
-  return post<CreateVoiceResponse>(API_PATHS.VOICES_CUSTOM, {
-    name: request.name,
-    sampleUrl: "",
-  })
+  const formData = new FormData()
+  formData.append("name", request.name)
+  formData.append("sample", request.sampleFile)
+  return postFormData<CreateVoiceResponse>(API_PATHS.VOICES_CUSTOM, formData)
 }
 
 export function getCustomVoices(): Promise<CustomVoice[]> {

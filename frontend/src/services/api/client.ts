@@ -46,6 +46,20 @@ export async function post<T>(path: string, body?: unknown): Promise<T> {
   return handleResponse<T>(response)
 }
 
+export async function postFormData<T>(path: string, formData: FormData): Promise<T> {
+  const token = localStorage.getItem("token")
+  const headers: HeadersInit = {}
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+  const response = await fetch(path, {
+    method: "POST",
+    headers,
+    body: formData,
+  })
+  return handleResponse<T>(response)
+}
+
 export async function del<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     method: "DELETE",

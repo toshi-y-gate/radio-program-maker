@@ -69,6 +69,12 @@ app.use(
   express.static(path.resolve(__dirname, "../output"))
 );
 
+app.use(
+  "/uploads",
+  authMiddleware,
+  express.static(path.resolve(__dirname, "../uploads"))
+);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/voices", voiceRoutes);
 app.use("/api/cache", cacheRoutes);
