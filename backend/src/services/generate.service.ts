@@ -117,7 +117,7 @@ async function callMinimaxTTS(
         emotion: settings.emotion,
       },
       audio_setting: {
-        format: "pcm",
+        format: "mp3",
         sample_rate: 44100,
       },
     }),
@@ -203,7 +203,7 @@ export async function generateRadio(
     }
 
     const cacheKey = generateCacheKey(line.text, voiceId, settings);
-    const cachePath = path.join(CACHE_DIR, `${cacheKey}.pcm`);
+    const cachePath = path.join(CACHE_DIR, `${cacheKey}.mp3`);
 
     if (fs.existsSync(cachePath)) {
       console.log(`[generate] Chunk ${i + 1}/${parsedLines.length}: cache hit (${line.text.length} chars)`);
@@ -217,29 +217,29 @@ export async function generateRadio(
     }
   }
 
-  // PCMで受信した音声を結合し、最終段階で高品質MP3に変換
-  // PCMチャンクを直接結合（無圧縮なので直接結合可能）
-  const combinedPcm = Buffer.concat(audioBuffers);
-
-  // 0.3秒の無音をチャンク間に挿入するため、全PCMを一旦ファイルに書き出し
-  const tempPcmPath = path.join(CACHE_DIR, `combined_${Date.now()}.pcm`);
-  fs.writeFileSync(tempPcmPath, combinedPcm);
+  // MP3チャンクをffmpegで再エンコードなし結合（-c copy）
+  const chunkFiles: string[] = [];
+  for (let i = 0; i < audioBuffers.length; i++) {
+    const chunkPath = path.join(CACHE_DIR, `chunk_${Date.now()}_${i}.mp3`);
+    fs.writeFileSync(chunkPath, audioBuffers[i]);
+    chunkFiles.push(chunkPath);
+  }
 
   const filename = `radio_${crypto.randomUUID()}.mp3`;
   const outputPath = path.join(OUTPUT_DIR, filename);
+  const concatListPath = path.join(CACHE_DIR, `concat_${Date.now()}.txt`);
+  fs.writeFileSync(concatListPath, chunkFiles.map((f) => `file '${f}'`).join("\n"));
 
   try {
-    // PCM → 高品質MP3変換（1回のみのエンコードで品質最大化）
     execSync(
-      `"${ffmpegPath}" -f s16le -ar 44100 -ac 1 -i "${tempPcmPath}" -c:a libmp3lame -b:a 192k -ar 44100 -y "${outputPath}" 2>/dev/null`,
+      `"${ffmpegPath}" -f concat -safe 0 -i "${concatListPath}" -c copy -y "${outputPath}" 2>/dev/null`,
       { timeout: 120000 }
     );
   } catch {
-    // fallback: direct PCM concat as MP3
-    fs.writeFileSync(outputPath, combinedPcm);
+    fs.writeFileSync(outputPath, Buffer.concat(audioBuffers));
   } finally {
-    // cleanup temp files
-    try { fs.unlinkSync(tempPcmPath); } catch {}
+    for (const f of chunkFiles) { try { fs.unlinkSync(f); } catch {} }
+    try { fs.unlinkSync(concatListPath); } catch {}
   }
 
   const outputStats = fs.statSync(outputPath);
