@@ -143,6 +143,7 @@ export function ProgramPage() {
   const [bgmFile, setBgmFile] = useState<File | null>(null)
   const [bgmMode, setBgmMode] = useState<BGMInsertMode>("background")
   const [bgmVolume, setBgmVolume] = useState([0.3])
+  const [bgmDragOver, setBgmDragOver] = useState(false)
 
   // フック
   const { isGenerating, progress, resultAudioUrl, error, generate } = useGenerate()
@@ -473,18 +474,6 @@ export function ProgramPage() {
               {/* ファイルアップロード */}
               <div className="space-y-2">
                 <Label>BGMファイル</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById("bgm-upload")?.click()}
-                  >
-                    ファイルを選択
-                  </Button>
-                  <span className="text-sm text-muted-foreground truncate">
-                    {bgmFile ? bgmFile.name : "未選択"}
-                  </span>
-                </div>
                 <input
                   id="bgm-upload"
                   type="file"
@@ -492,6 +481,27 @@ export function ProgramPage() {
                   className="hidden"
                   onChange={(e) => setBgmFile(e.target.files?.[0] ?? null)}
                 />
+                <div
+                  className={`cursor-pointer rounded-lg border-2 border-dashed p-4 text-center transition-colors hover:bg-muted/50 ${bgmDragOver ? "border-primary bg-primary/5" : "border-border"}`}
+                  onClick={() => document.getElementById("bgm-upload")?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setBgmDragOver(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); setBgmDragOver(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setBgmDragOver(false);
+                    const file = e.dataTransfer.files[0];
+                    if (file) setBgmFile(file);
+                  }}
+                >
+                  {bgmFile ? (
+                    <p className="text-sm font-medium">{bgmFile.name}</p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium">クリックまたはドラッグ&ドロップ</p>
+                      <p className="text-xs text-muted-foreground">MP3 / WAV / M4A</p>
+                    </>
+                  )}
+                </div>
               </div>
 
               <Separator />
