@@ -128,7 +128,13 @@ async function callMinimaxTTS(
     throw new Error("MiniMax API returned no audio data");
   }
 
-  return Buffer.from(audioData, "hex");
+  // Auto-detect hex vs base64 encoding
+  const isHex = /^[0-9a-fA-F]+$/.test(audioData.substring(0, 100));
+  const buf = isHex
+    ? Buffer.from(audioData, "hex")
+    : Buffer.from(audioData, "base64");
+  console.log(`[tts] Audio decoded: ${isHex ? "hex" : "base64"}, ${buf.length} bytes`);
+  return buf;
 }
 
 export async function generateRadio(
@@ -150,7 +156,9 @@ export async function generateRadio(
   const audioBuffers: Buffer[] = [];
   const uniqueSpeakers = [...new Set(parsedLines.map((l) => l.speaker))];
 
-  for (const line of parsedLines) {
+  console.log(`[generate] Processing ${parsedLines.length} chunks`);
+  for (let i = 0; i < parsedLines.length; i++) {
+    const line = parsedLines[i];
     const voiceId = speakerMap.get(line.speaker);
     if (!voiceId) {
       throw new Error(`話者 "${line.speaker}" のボイスが割り当てられていません`);
@@ -160,9 +168,12 @@ export async function generateRadio(
     const cachePath = path.join(CACHE_DIR, `${cacheKey}.mp3`);
 
     if (fs.existsSync(cachePath)) {
+      console.log(`[generate] Chunk ${i + 1}/${parsedLines.length}: cache hit (${line.text.length} chars)`);
       audioBuffers.push(fs.readFileSync(cachePath));
     } else {
+      console.log(`[generate] Chunk ${i + 1}/${parsedLines.length}: calling API (${line.text.length} chars)`);
       const audio = await callMinimaxTTS(line.text, voiceId, settings);
+      console.log(`[generate] Chunk ${i + 1}: got ${audio.length} bytes`);
       fs.writeFileSync(cachePath, audio);
       audioBuffers.push(audio);
     }
@@ -173,6 +184,7 @@ export async function generateRadio(
   const outputPath = path.join(OUTPUT_DIR, filename);
   fs.writeFileSync(outputPath, combined);
 
+  console.log(`[generate] Total: ${audioBuffers.length} chunks, ${combined.length} bytes`);
   const estimatedDuration = Math.round(combined.length / 4000);
 
   await prisma.history.create({
