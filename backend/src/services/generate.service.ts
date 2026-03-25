@@ -117,9 +117,8 @@ async function callMinimaxTTS(
         emotion: settings.emotion,
       },
       audio_setting: {
-        format: "mp3",
+        format: "pcm",
         sample_rate: 44100,
-        bitrate: 128000,
       },
     }),
   });
@@ -204,7 +203,7 @@ export async function generateRadio(
     }
 
     const cacheKey = generateCacheKey(line.text, voiceId, settings);
-    const cachePath = path.join(CACHE_DIR, `${cacheKey}.mp3`);
+    const cachePath = path.join(CACHE_DIR, `${cacheKey}.pcm`);
 
     if (fs.existsSync(cachePath)) {
       console.log(`[generate] Chunk ${i + 1}/${parsedLines.length}: cache hit (${line.text.length} chars)`);
@@ -218,44 +217,29 @@ export async function generateRadio(
     }
   }
 
-  // ffmpegで正しくMP3を結合（つなぎ目ノイズ防止 + セグメント間に無音挿入）
-  const chunkFiles: string[] = [];
-  const silencePath = path.join(CACHE_DIR, `silence_${Date.now()}.mp3`);
-  // 0.3秒の無音ファイルを生成
-  execSync(
-    `"${ffmpegPath}" -f lavfi -i anullsrc=r=44100:cl=mono -t 0.3 -c:a libmp3lame -b:a 128k -y "${silencePath}" 2>/dev/null`,
-    { timeout: 10000 }
-  );
+  // PCMで受信した音声を結合し、最終段階で高品質MP3に変換
+  // PCMチャンクを直接結合（無圧縮なので直接結合可能）
+  const combinedPcm = Buffer.concat(audioBuffers);
 
-  for (let i = 0; i < audioBuffers.length; i++) {
-    const chunkPath = path.join(CACHE_DIR, `chunk_${Date.now()}_${i}.mp3`);
-    fs.writeFileSync(chunkPath, audioBuffers[i]);
-    chunkFiles.push(chunkPath);
-    if (i < audioBuffers.length - 1) {
-      chunkFiles.push(silencePath);
-    }
-  }
+  // 0.3秒の無音をチャンク間に挿入するため、全PCMを一旦ファイルに書き出し
+  const tempPcmPath = path.join(CACHE_DIR, `combined_${Date.now()}.pcm`);
+  fs.writeFileSync(tempPcmPath, combinedPcm);
 
   const filename = `radio_${crypto.randomUUID()}.mp3`;
   const outputPath = path.join(OUTPUT_DIR, filename);
-  const concatListPath = path.join(CACHE_DIR, `concat_${Date.now()}.txt`);
-  fs.writeFileSync(concatListPath, chunkFiles.map((f) => `file '${f}'`).join("\n"));
 
   try {
+    // PCM → 高品質MP3変換（1回のみのエンコードで品質最大化）
     execSync(
-      `"${ffmpegPath}" -f concat -safe 0 -i "${concatListPath}" -c:a libmp3lame -b:a 192k -ar 44100 -y "${outputPath}" 2>/dev/null`,
+      `"${ffmpegPath}" -f s16le -ar 44100 -ac 1 -i "${tempPcmPath}" -c:a libmp3lame -b:a 192k -ar 44100 -y "${outputPath}" 2>/dev/null`,
       { timeout: 120000 }
     );
   } catch {
-    // fallback: direct concat
-    const combined = Buffer.concat(audioBuffers);
-    fs.writeFileSync(outputPath, combined);
+    // fallback: direct PCM concat as MP3
+    fs.writeFileSync(outputPath, combinedPcm);
   } finally {
     // cleanup temp files
-    const uniqueFiles = [...new Set(chunkFiles)];
-    for (const f of uniqueFiles) { try { fs.unlinkSync(f); } catch {} }
-    try { fs.unlinkSync(concatListPath); } catch {}
-    try { fs.unlinkSync(silencePath); } catch {}
+    try { fs.unlinkSync(tempPcmPath); } catch {}
   }
 
   const outputStats = fs.statSync(outputPath);
