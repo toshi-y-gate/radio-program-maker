@@ -384,7 +384,7 @@ export function ProgramPage() {
                 </div>
                 <Slider
                   value={speed}
-                  onValueChange={(val) => val && setSpeed(val as number[])}
+                  onValueChange={(val) => setSpeed(Array.isArray(val) ? val : [val])}
                   min={0.5}
                   max={2.0}
                   step={0.1}
@@ -399,7 +399,7 @@ export function ProgramPage() {
                 </div>
                 <Slider
                   value={volume}
-                  onValueChange={(val) => val && setVolume(val as number[])}
+                  onValueChange={(val) => setVolume(Array.isArray(val) ? val : [val])}
                   min={0.1}
                   max={10.0}
                   step={0.1}
@@ -414,7 +414,7 @@ export function ProgramPage() {
                 </div>
                 <Slider
                   value={pitch}
-                  onValueChange={(val) => val && setPitch(val as number[])}
+                  onValueChange={(val) => setPitch(Array.isArray(val) ? val : [val])}
                   min={-12}
                   max={12}
                   step={1}
@@ -521,7 +521,7 @@ export function ProgramPage() {
                 </div>
                 <Slider
                   value={bgmVolume}
-                  onValueChange={(val) => val && setBgmVolume(val as number[])}
+                  onValueChange={(val) => setBgmVolume(Array.isArray(val) ? val : [val])}
                   min={0}
                   max={1.0}
                   step={0.05}

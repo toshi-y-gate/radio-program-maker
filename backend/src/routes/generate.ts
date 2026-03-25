@@ -22,7 +22,15 @@ const router = Router();
 router.post(
   "/",
   authMiddleware,
-  upload.single("bgmFile"),
+  (req: Request, res: Response, next) => {
+    // Handle both JSON and FormData requests
+    const contentType = req.headers["content-type"] || "";
+    if (contentType.includes("multipart/form-data")) {
+      upload.single("bgmFile")(req, res, next);
+    } else {
+      next();
+    }
+  },
   async (req: Request, res: Response) => {
     // Parse JSON fields from FormData or regular JSON body
     let body = req.body;

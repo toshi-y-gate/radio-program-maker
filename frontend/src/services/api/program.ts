@@ -3,12 +3,13 @@ import { API_PATHS } from "../../types"
 import { get, post, postFormData } from "./client"
 
 export function generateProgram(request: GenerateRequest, bgmFile?: File): Promise<GenerateResponse> {
-  const formData = new FormData()
-  formData.append("data", JSON.stringify(request))
   if (bgmFile) {
+    const formData = new FormData()
+    formData.append("data", JSON.stringify(request))
     formData.append("bgmFile", bgmFile)
+    return postFormData<GenerateResponse>(API_PATHS.GENERATE, formData)
   }
-  return postFormData<GenerateResponse>(API_PATHS.GENERATE, formData)
+  return post<GenerateResponse>(API_PATHS.GENERATE, request)
 }
 
 export function getVoicePresets(): Promise<VoicePreset[]> {
