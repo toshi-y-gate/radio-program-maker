@@ -73,6 +73,7 @@ async function callMinimaxTTS(
       model: settings.model,
       text,
       stream: false,
+      language_boost: "Japanese",
       voice_setting: {
         voice_id: voiceId,
         speed: settings.speed,

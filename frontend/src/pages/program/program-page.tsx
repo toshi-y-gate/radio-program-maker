@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react"
 import { useGenerate } from "@/hooks/useGenerate"
 import { useVoicePresets } from "@/hooks/useVoicePresets"
+import { useVoices } from "@/hooks/useVoices"
 import type { Emotion, TTSModel, BGMInsertMode } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -143,6 +144,7 @@ export function ProgramPage() {
   // フック
   const { isGenerating, progress, resultAudioUrl, error, generate } = useGenerate()
   const { presets: voicePresets, loading: presetsLoading } = useVoicePresets()
+  const { customVoices } = useVoices()
 
   // 話者検出
   const speakers = useMemo(() => detectSpeakers(script), [script])
@@ -272,6 +274,16 @@ export function ProgramPage() {
                           <SelectValue placeholder="ボイスを選択" />
                         </SelectTrigger>
                         <SelectContent>
+                          {customVoices.filter(v => v.status === "available").length > 0 && (
+                            <>
+                              {customVoices.filter(v => v.status === "available").map((voice) => (
+                                <SelectItem key={voice.id} value={voice.id}>
+                                  🎤 {voice.name}（カスタム）
+                                </SelectItem>
+                              ))}
+                              <Separator className="my-1" />
+                            </>
+                          )}
                           {voicePresets.map((voice) => (
                             <SelectItem key={voice.id} value={voice.id}>
                               {voice.name}
