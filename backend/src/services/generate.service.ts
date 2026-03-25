@@ -35,7 +35,7 @@ function generateCacheKey(
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-function splitLongText(text: string, maxLen = 2000): string[] {
+function splitLongText(text: string, maxLen = 300): string[] {
   if (text.length <= maxLen) return [text];
   const chunks: string[] = [];
   const sentences = text.split(/(?<=[。！？\n])/);
@@ -81,7 +81,7 @@ function parseScript(
     if (!matched) {
       // タグなしのテキスト行 → 最初の話者名でチャンク分割
       const defaultSpeaker = speakerNames[0] || "ナレーター";
-      for (const chunk of splitLongText(line.trim(), 2000)) {
+      for (const chunk of splitLongText(line.trim())) {
         result.push({ speaker: defaultSpeaker, text: chunk });
       }
     }
@@ -218,12 +218,22 @@ export async function generateRadio(
     }
   }
 
-  // ffmpegで正しくMP3を結合（つなぎ目ノイズ防止）
+  // ffmpegで正しくMP3を結合（つなぎ目ノイズ防止 + セグメント間に無音挿入）
   const chunkFiles: string[] = [];
+  const silencePath = path.join(CACHE_DIR, `silence_${Date.now()}.mp3`);
+  // 0.3秒の無音ファイルを生成
+  execSync(
+    `"${ffmpegPath}" -f lavfi -i anullsrc=r=44100:cl=mono -t 0.3 -c:a libmp3lame -b:a 128k -y "${silencePath}" 2>/dev/null`,
+    { timeout: 10000 }
+  );
+
   for (let i = 0; i < audioBuffers.length; i++) {
     const chunkPath = path.join(CACHE_DIR, `chunk_${Date.now()}_${i}.mp3`);
     fs.writeFileSync(chunkPath, audioBuffers[i]);
     chunkFiles.push(chunkPath);
+    if (i < audioBuffers.length - 1) {
+      chunkFiles.push(silencePath);
+    }
   }
 
   const filename = `radio_${crypto.randomUUID()}.mp3`;
@@ -233,7 +243,7 @@ export async function generateRadio(
 
   try {
     execSync(
-      `"${ffmpegPath}" -f concat -safe 0 -i "${concatListPath}" -c:a libmp3lame -b:a 128k -ar 44100 -y "${outputPath}" 2>/dev/null`,
+      `"${ffmpegPath}" -f concat -safe 0 -i "${concatListPath}" -c:a libmp3lame -b:a 192k -ar 44100 -y "${outputPath}" 2>/dev/null`,
       { timeout: 120000 }
     );
   } catch {
@@ -242,8 +252,10 @@ export async function generateRadio(
     fs.writeFileSync(outputPath, combined);
   } finally {
     // cleanup temp files
-    for (const f of chunkFiles) { try { fs.unlinkSync(f); } catch {} }
+    const uniqueFiles = [...new Set(chunkFiles)];
+    for (const f of uniqueFiles) { try { fs.unlinkSync(f); } catch {} }
     try { fs.unlinkSync(concatListPath); } catch {}
+    try { fs.unlinkSync(silencePath); } catch {}
   }
 
   const outputStats = fs.statSync(outputPath);
