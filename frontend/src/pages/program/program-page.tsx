@@ -277,7 +277,7 @@ export function ProgramPage() {
                           {customVoices.filter(v => v.status === "available").length > 0 && (
                             <>
                               {customVoices.filter(v => v.status === "available").map((voice) => (
-                                <SelectItem key={voice.id} value={voice.id}>
+                                <SelectItem key={voice.id} value={voice.sampleUrl}>
                                   🎤 {voice.name}（カスタム）
                                 </SelectItem>
                               ))}
