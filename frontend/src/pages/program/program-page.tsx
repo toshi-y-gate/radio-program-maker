@@ -80,7 +80,16 @@ const BGM_MODES = [
 
 // --- 話者検出 ---
 
+const DEFAULT_SPEAKER = "ナレーター"
+
+function hasSpeakerTags(script: string): boolean {
+  return /\[.+?\]|【.+?】|^.+?[:：]\s/m.test(script)
+}
+
 function detectSpeakers(script: string): string[] {
+  if (!hasSpeakerTags(script) && script.trim().length > 0) {
+    return [DEFAULT_SPEAKER]
+  }
   const patterns = [
     /\[(.+?)\]/g,
     /【(.+?)】/g,
@@ -97,6 +106,15 @@ function detectSpeakers(script: string): string[] {
     }
   }
   return Array.from(speakers)
+}
+
+function normalizeScript(script: string): string {
+  if (hasSpeakerTags(script)) return script
+  return script
+    .split("\n")
+    .filter((l) => l.trim())
+    .map((l) => `[${DEFAULT_SPEAKER}] ${l}`)
+    .join("\n")
 }
 
 // --- コンポーネント ---
@@ -142,9 +160,10 @@ export function ProgramPage() {
   function handleGenerate() {
     const effectiveModel: TTSModel = turboPreview ? "speech-2.8-turbo" : model
     const defaultVoiceId = voicePresets.length > 0 ? voicePresets[0].id : ""
+    const normalizedScript = normalizeScript(script)
 
     generate({
-      script,
+      script: normalizedScript,
       speakers: speakers.map((s) => ({
         speaker: s,
         voiceId: voiceAssignments[s] ?? defaultVoiceId,
@@ -205,7 +224,7 @@ export function ProgramPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Textarea
-                placeholder={`スクリプトを入力してください。\n対応フォーマット:\n[話者名] セリフ\n【話者名】 セリフ\n話者名: セリフ\n話者名： セリフ`}
+                placeholder={`スクリプトを入力してください。\nそのまま文章を入力すればOKです（自動でナレーターとして処理されます）。\n\n複数話者の場合:\n[話者名] セリフ\n【話者名】 セリフ`}
                 value={script}
                 onChange={(e) => setScript(e.target.value)}
                 className="min-h-48 font-mono text-sm"
