@@ -60,25 +60,19 @@ app.use(
 );
 
 // Temporary debug endpoint - REMOVE after diagnosis
-app.get("/debug/login-test", async (_req, res) => {
+app.post("/debug/login-test", async (req, res) => {
   try {
-    const { prisma } = await import("./db");
-    const bcrypt = await import("bcryptjs");
+    const { loginSchema } = await import("./utils/validation");
+    const authService = await import("./services/auth.service");
 
-    const user = await prisma.user.findUnique({ where: { email: "test@example.com" } });
-    if (!user) {
-      res.json({ step: "findUnique", result: "user not found" });
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.json({ step: "validation", error: parsed.error.errors[0].message, body: req.body });
       return;
     }
 
-    const valid = await bcrypt.default.compare("Test1234!", user.password);
-    res.json({
-      step: "complete",
-      userFound: true,
-      passwordValid: valid,
-      hashPrefix: user.password.substring(0, 7),
-      bcryptVersion: typeof bcrypt.default.compareSync,
-    });
+    const result = await authService.login(parsed.data.email, parsed.data.password);
+    res.json({ step: "complete", result });
   } catch (err) {
     res.json({
       step: "error",
