@@ -32,7 +32,7 @@ function generateCacheKey(
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-function splitLongText(text: string, maxLen = 500): string[] {
+function splitLongText(text: string, maxLen = 2000): string[] {
   if (text.length <= maxLen) return [text];
   const chunks: string[] = [];
   const sentences = text.split(/(?<=[。！？\n])/);
@@ -76,17 +76,10 @@ function parseScript(
       }
     }
     if (!matched) {
-      // タグなしのテキスト行 → 最初の話者名で句点分割
+      // タグなしのテキスト行 → 最初の話者名でチャンク分割
       const defaultSpeaker = speakerNames[0] || "ナレーター";
-      const rawText = line.trim();
-      const sentences = rawText
-        .split(/(?<=[。！？])/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-      for (const sentence of sentences) {
-        for (const chunk of splitLongText(sentence)) {
-          result.push({ speaker: defaultSpeaker, text: chunk });
-        }
+      for (const chunk of splitLongText(line.trim(), 2000)) {
+        result.push({ speaker: defaultSpeaker, text: chunk });
       }
     }
   }
