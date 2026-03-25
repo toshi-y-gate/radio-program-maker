@@ -59,6 +59,35 @@ app.use(
   express.static(path.resolve(__dirname, "../output"))
 );
 
+// Temporary debug endpoint - REMOVE after diagnosis
+app.get("/debug/login-test", async (_req, res) => {
+  try {
+    const { prisma } = await import("./db");
+    const bcrypt = await import("bcryptjs");
+
+    const user = await prisma.user.findUnique({ where: { email: "test@example.com" } });
+    if (!user) {
+      res.json({ step: "findUnique", result: "user not found" });
+      return;
+    }
+
+    const valid = await bcrypt.default.compare("Test1234!", user.password);
+    res.json({
+      step: "complete",
+      userFound: true,
+      passwordValid: valid,
+      hashPrefix: user.password.substring(0, 7),
+      bcryptVersion: typeof bcrypt.default.compareSync,
+    });
+  } catch (err) {
+    res.json({
+      step: "error",
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.split("\n").slice(0, 5) : undefined,
+    });
+  }
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/voices", voiceRoutes);
 app.use("/api/cache", cacheRoutes);
