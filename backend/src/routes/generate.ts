@@ -17,13 +17,19 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 });
 
+// In-memory job store
+const jobs = new Map<
+  string,
+  { status: "processing" | "done" | "error"; result?: unknown; error?: string }
+>();
+
 const router = Router();
 
+// Start generation (returns job ID immediately)
 router.post(
   "/",
   authMiddleware,
   (req: Request, res: Response, next) => {
-    // Handle both JSON and FormData requests
     const contentType = req.headers["content-type"] || "";
     if (contentType.includes("multipart/form-data")) {
       upload.single("bgmFile")(req, res, next);
@@ -31,11 +37,14 @@ router.post(
       next();
     }
   },
-  async (req: Request, res: Response) => {
-    // Parse JSON fields from FormData or regular JSON body
+  (req: Request, res: Response) => {
     let body = req.body;
     if (typeof body.data === "string") {
-      try { body = JSON.parse(body.data); } catch { /* keep original */ }
+      try {
+        body = JSON.parse(body.data);
+      } catch {
+        /* keep original */
+      }
     }
 
     const parsed = generateSchema.safeParse(body);
@@ -44,24 +53,55 @@ router.post(
       return;
     }
 
-    try {
-      const bgmFilePath = req.file ? req.file.path : undefined;
-      const result = await generateService.generateRadio(
+    const jobId = crypto.randomUUID();
+    jobs.set(jobId, { status: "processing" });
+
+    // Run generation in background
+    const bgmFilePath = req.file ? req.file.path : undefined;
+    generateService
+      .generateRadio(
         req.userId!,
         parsed.data.script,
         parsed.data.speakers,
         parsed.data.settings,
         parsed.data.bgm,
         bgmFilePath
-      );
-      res.json(result);
-    } catch (err) {
-      console.error("Generate error:", err instanceof Error ? err.message : err);
-      const message =
-        err instanceof Error ? err.message : "音声生成に失敗しました";
-      res.status(500).json({ error: message });
-    }
+      )
+      .then((result) => {
+        jobs.set(jobId, { status: "done", result });
+      })
+      .catch((err) => {
+        console.error(
+          "Generate error:",
+          err instanceof Error ? err.message : err
+        );
+        jobs.set(jobId, {
+          status: "error",
+          error: err instanceof Error ? err.message : "音声生成に失敗しました",
+        });
+      });
+
+    // Return job ID immediately (no timeout)
+    res.json({ jobId });
   }
 );
+
+// Poll job status
+router.get("/status/:jobId", authMiddleware, (req: Request, res: Response) => {
+  const job = jobs.get(req.params.jobId as string);
+  if (!job) {
+    res.status(404).json({ error: "ジョブが見つかりません" });
+    return;
+  }
+  if (job.status === "done") {
+    jobs.delete(req.params.jobId as string);
+    res.json({ status: "done", ...(job.result as Record<string, unknown>) });
+  } else if (job.status === "error") {
+    jobs.delete(req.params.jobId as string);
+    res.status(500).json({ status: "error", error: job.error });
+  } else {
+    res.json({ status: "processing" });
+  }
+});
 
 export default router;
