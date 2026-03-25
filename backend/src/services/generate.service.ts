@@ -32,6 +32,22 @@ function generateCacheKey(
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
+function splitLongText(text: string, maxLen = 500): string[] {
+  if (text.length <= maxLen) return [text];
+  const chunks: string[] = [];
+  const sentences = text.split(/(?<=[。！？\n])/);
+  let current = "";
+  for (const s of sentences) {
+    if (current.length + s.length > maxLen && current.length > 0) {
+      chunks.push(current.trim());
+      current = "";
+    }
+    current += s;
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+}
+
 function parseScript(script: string): { speaker: string; text: string }[] {
   const lines = script.split("\n").filter((l) => l.trim());
   const patterns = [
@@ -41,17 +57,21 @@ function parseScript(script: string): { speaker: string; text: string }[] {
     /^(.+?)：\s*(.+)$/,
   ];
 
-  return lines
-    .map((line) => {
-      for (const pattern of patterns) {
-        const match = line.match(pattern);
-        if (match) {
-          return { speaker: match[1].trim(), text: match[2].trim() };
+  const result: { speaker: string; text: string }[] = [];
+  for (const line of lines) {
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match) {
+        const speaker = match[1].trim();
+        const text = match[2].trim();
+        for (const chunk of splitLongText(text)) {
+          result.push({ speaker, text: chunk });
         }
+        break;
       }
-      return null;
-    })
-    .filter((item): item is { speaker: string; text: string } => item !== null);
+    }
+  }
+  return result;
 }
 
 async function callMinimaxTTS(
