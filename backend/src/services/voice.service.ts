@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { prisma } from "../db";
 import { config } from "../config";
 
@@ -36,13 +37,41 @@ export async function getAllVoices(userId: string) {
   };
 }
 
+function prepareAudioForClone(filePath: string): string {
+  const dir = path.dirname(filePath);
+  const outputPath = path.join(dir, `clone_${Date.now()}.mp3`);
+
+  // Convert to MP3, max 2 minutes, mono, 128kbps (keeps file under 2MB)
+  execSync(
+    `ffmpeg -i "${filePath}" -t 120 -ac 1 -ab 128k -ar 44100 -y "${outputPath}" 2>/dev/null`,
+    { timeout: 60000 }
+  );
+
+  const stats = fs.statSync(outputPath);
+  if (stats.size > 19 * 1024 * 1024) {
+    // If still too large, reduce to 60 seconds
+    const smallerPath = path.join(dir, `clone_small_${Date.now()}.mp3`);
+    execSync(
+      `ffmpeg -i "${filePath}" -t 60 -ac 1 -ab 64k -ar 22050 -y "${smallerPath}" 2>/dev/null`,
+      { timeout: 60000 }
+    );
+    fs.unlinkSync(outputPath);
+    return smallerPath;
+  }
+
+  return outputPath;
+}
+
 async function registerVoiceWithMinimax(
   filePath: string,
   voiceId: string
 ): Promise<void> {
-  // Step 1: Upload file to MiniMax
-  const fileBuffer = fs.readFileSync(filePath);
-  const fileName = path.basename(filePath);
+  // Step 0: Prepare audio (convert to MP3, trim to 2min, reduce size)
+  const preparedPath = prepareAudioForClone(filePath);
+
+  // Step 1: Upload prepared file to MiniMax
+  const fileBuffer = fs.readFileSync(preparedPath);
+  const fileName = path.basename(preparedPath);
   const blob = new Blob([fileBuffer]);
   const formData = new FormData();
   formData.append("purpose", "voice_clone");
@@ -94,10 +123,14 @@ async function registerVoiceWithMinimax(
     base_resp?: { status_code: number; status_msg?: string };
   };
   if (cloneData.base_resp?.status_code !== 0) {
+    fs.unlinkSync(preparedPath);
     throw new Error(
       `MiniMax voice clone error: ${cloneData.base_resp?.status_msg || "unknown"}`
     );
   }
+
+  // Cleanup prepared file
+  fs.unlinkSync(preparedPath);
 }
 
 export async function createCustomVoice(
