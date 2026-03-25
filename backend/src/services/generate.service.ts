@@ -118,7 +118,8 @@ async function callMinimaxTTS(
       },
       audio_setting: {
         format: "mp3",
-        sample_rate: 32000,
+        sample_rate: 44100,
+        bitrate: 128000,
       },
     }),
   });
@@ -217,30 +218,54 @@ export async function generateRadio(
     }
   }
 
-  const combined = Buffer.concat(audioBuffers);
+  // ffmpegで正しくMP3を結合（つなぎ目ノイズ防止）
+  const chunkFiles: string[] = [];
+  for (let i = 0; i < audioBuffers.length; i++) {
+    const chunkPath = path.join(CACHE_DIR, `chunk_${Date.now()}_${i}.mp3`);
+    fs.writeFileSync(chunkPath, audioBuffers[i]);
+    chunkFiles.push(chunkPath);
+  }
+
   const filename = `radio_${crypto.randomUUID()}.mp3`;
   const outputPath = path.join(OUTPUT_DIR, filename);
+  const concatListPath = path.join(CACHE_DIR, `concat_${Date.now()}.txt`);
+  fs.writeFileSync(concatListPath, chunkFiles.map((f) => `file '${f}'`).join("\n"));
+
+  try {
+    execSync(
+      `"${ffmpegPath}" -f concat -safe 0 -i "${concatListPath}" -c:a libmp3lame -b:a 128k -ar 44100 -y "${outputPath}" 2>/dev/null`,
+      { timeout: 120000 }
+    );
+  } catch {
+    // fallback: direct concat
+    const combined = Buffer.concat(audioBuffers);
+    fs.writeFileSync(outputPath, combined);
+  } finally {
+    // cleanup temp files
+    for (const f of chunkFiles) { try { fs.unlinkSync(f); } catch {} }
+    try { fs.unlinkSync(concatListPath); } catch {}
+  }
+
+  const outputStats = fs.statSync(outputPath);
 
   if (bgmFilePath && bgmOptions && fs.existsSync(bgmFilePath)) {
-    // Write speech to temp file, then mix with BGM
+    // Mix BGM with the already-created output file
     const tempSpeechPath = path.join(OUTPUT_DIR, `temp_speech_${Date.now()}.mp3`);
-    fs.writeFileSync(tempSpeechPath, combined);
+    fs.renameSync(outputPath, tempSpeechPath);
     try {
       mixBgm(tempSpeechPath, bgmFilePath, bgmOptions.volume, outputPath);
       console.log("[generate] BGM mixed successfully");
     } catch (err) {
       console.error("[generate] BGM mix failed, using speech only:", err instanceof Error ? err.message : err);
-      fs.writeFileSync(outputPath, combined);
+      fs.renameSync(tempSpeechPath, outputPath);
     } finally {
-      if (fs.existsSync(tempSpeechPath)) fs.unlinkSync(tempSpeechPath);
-      if (fs.existsSync(bgmFilePath)) fs.unlinkSync(bgmFilePath);
+      if (fs.existsSync(tempSpeechPath)) try { fs.unlinkSync(tempSpeechPath); } catch {}
+      if (fs.existsSync(bgmFilePath)) try { fs.unlinkSync(bgmFilePath); } catch {}
     }
-  } else {
-    fs.writeFileSync(outputPath, combined);
   }
 
-  console.log(`[generate] Total: ${audioBuffers.length} chunks, ${combined.length} bytes`);
-  const estimatedDuration = Math.round(combined.length / 4000);
+  console.log(`[generate] Total: ${audioBuffers.length} chunks, ${outputStats.size} bytes`);
+  const estimatedDuration = Math.round(outputStats.size / 16000);
 
   await prisma.history.create({
     data: {
