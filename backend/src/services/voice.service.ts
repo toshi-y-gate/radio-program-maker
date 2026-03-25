@@ -7,14 +7,22 @@ import { prisma } from "../db";
 import { config } from "../config";
 
 const PRESET_VOICES = [
-  { id: "male-qn-qingse", name: "青涩青年", language: "ja" as const, gender: "male" as const },
-  { id: "male-qn-jingying", name: "精英青年", language: "ja" as const, gender: "male" as const },
-  { id: "female-shaonv", name: "少女", language: "ja" as const, gender: "female" as const },
-  { id: "female-yujie", name: "御姐", language: "ja" as const, gender: "female" as const },
-  { id: "male-qn-qingse-en", name: "Young Male", language: "en" as const, gender: "male" as const },
-  { id: "male-qn-jingying-en", name: "Elite Male", language: "en" as const, gender: "male" as const },
-  { id: "female-shaonv-en", name: "Young Female", language: "en" as const, gender: "female" as const },
-  { id: "female-yujie-en", name: "Mature Female", language: "en" as const, gender: "female" as const },
+  { id: "Japanese_IntellectualSenior", name: "知的な紳士", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_LoyalKnight", name: "誠実な騎士", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_DominantMan", name: "力強い男性", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_SeriousCommander", name: "真剣な指揮官", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_GentleButler", name: "優しい執事", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_OptimisticYouth", name: "明るい青年", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_GenerousIzakayaOwner", name: "居酒屋の大将", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_DecisivePrincess", name: "凛としたお嬢様", language: "ja" as const, gender: "female" as const },
+  { id: "Japanese_ColdQueen", name: "クールな女王", language: "ja" as const, gender: "female" as const },
+  { id: "Japanese_DependableWoman", name: "頼れる女性", language: "ja" as const, gender: "female" as const },
+  { id: "Japanese_KindLady", name: "優しい淑女", language: "ja" as const, gender: "female" as const },
+  { id: "Japanese_CalmLady", name: "落ち着いた女性", language: "ja" as const, gender: "female" as const },
+  { id: "Japanese_GracefulMaiden", name: "上品な乙女", language: "ja" as const, gender: "female" as const },
+  { id: "Japanese_Whisper_Belle", name: "ささやきの美女", language: "ja" as const, gender: "female" as const },
+  { id: "Japanese_SportyStudent", name: "スポーツ少年", language: "ja" as const, gender: "male" as const },
+  { id: "Japanese_InnocentBoy", name: "無邪気な少年", language: "ja" as const, gender: "male" as const },
 ];
 
 export function getPresetVoices() {
