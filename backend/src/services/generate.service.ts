@@ -35,7 +35,7 @@ function generateCacheKey(
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-function splitLongText(text: string, maxLen = 300): string[] {
+function splitLongText(text: string, maxLen = 500): string[] {
   if (text.length <= maxLen) return [text];
   const chunks: string[] = [];
   const sentences = text.split(/(?<=[。！？\n])/);
