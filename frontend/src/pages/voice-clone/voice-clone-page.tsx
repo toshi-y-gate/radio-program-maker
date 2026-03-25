@@ -7,10 +7,18 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useVoices } from "@/hooks/useVoices"
 
+const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".mp4", ".m4a"]
+
+function isAcceptedFile(file: File): boolean {
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."))
+  return ACCEPTED_EXTENSIONS.includes(ext)
+}
+
 export function VoiceClonePage() {
   const [voiceName, setVoiceName] = useState("")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [creating, setCreating] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { customVoices, presetVoices, loading, error, createVoice, deleteVoice } = useVoices()
 
@@ -23,6 +31,25 @@ export function VoiceClonePage() {
 
   const handleDropAreaClick = () => {
     fileInputRef.current?.click()
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file && isAcceptedFile(file)) {
+      setUploadedFile(file)
+    }
   }
 
   const handleCreate = async () => {
@@ -97,14 +124,17 @@ export function VoiceClonePage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".mp3,.wav,.mp4"
+              accept=".mp3,.wav,.mp4,.m4a"
               className="hidden"
               onChange={handleFileChange}
             />
             <Card
               size="sm"
-              className="cursor-pointer border-dashed transition-colors hover:bg-muted/50"
+              className={`cursor-pointer border-dashed transition-colors hover:bg-muted/50 ${dragOver ? "border-primary bg-primary/5" : ""}`}
               onClick={handleDropAreaClick}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <CardContent className="flex flex-col items-center justify-center py-6 text-center">
                 <div className="mb-2 text-3xl">🎵</div>
@@ -113,10 +143,10 @@ export function VoiceClonePage() {
                 ) : (
                   <>
                     <p className="text-sm font-medium">
-                      クリックして音声ファイルを選択
+                      クリックまたはドラッグ&ドロップで音声ファイルを選択
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      MP3 / WAV / MP4（5秒以上）
+                      MP3 / WAV / MP4 / M4A（5秒以上）
                     </p>
                   </>
                 )}
