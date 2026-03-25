@@ -13,7 +13,7 @@ const upload = multer({
       cb(null, `${crypto.randomUUID()}${ext}`);
     },
   }),
-  limits: { fileSize: 20 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = [".mp3", ".wav", ".mp4", ".m4a"];
     const ext = path.extname(file.originalname).toLowerCase();
