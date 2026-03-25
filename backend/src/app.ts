@@ -4,6 +4,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import { authMiddleware } from "./middleware/auth";
+import { ensureDbConnection } from "./db";
 import authRoutes from "./routes/auth";
 import voiceRoutes from "./routes/voices";
 import cacheRoutes from "./routes/cache";
@@ -13,9 +14,20 @@ import historyRoutes from "./routes/history";
 const app = express();
 
 app.use(helmet());
+
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim());
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
@@ -32,8 +44,13 @@ const authLimiter = rateLimit({
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+app.get("/health", async (_req, res) => {
+  try {
+    await ensureDbConnection(1);
+    res.json({ status: "ok", db: "connected" });
+  } catch {
+    res.status(503).json({ status: "ok", db: "disconnected" });
+  }
 });
 
 app.use(

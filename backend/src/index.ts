@@ -1,11 +1,17 @@
 import { config, validateConfig } from "./config";
 import app from "./app";
-import { prisma } from "./db";
+import { prisma, ensureDbConnection } from "./db";
 
 validateConfig();
 
-const server = app.listen(config.port, () => {
+const server = app.listen(config.port, async () => {
   console.log(`Server running on port ${config.port}`);
+  try {
+    await ensureDbConnection();
+    console.log("Database connected");
+  } catch (err) {
+    console.error("Database connection failed:", err instanceof Error ? err.message : err);
+  }
 });
 
 process.on("SIGTERM", async () => {
