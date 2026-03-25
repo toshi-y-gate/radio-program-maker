@@ -346,11 +346,11 @@ export function ProgramPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>話速</Label>
-                  <span className="text-sm text-muted-foreground">{speed[0].toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{(speed[0] ?? 1.0).toFixed(1)}</span>
                 </div>
                 <Slider
                   value={speed}
-                  onValueChange={(val) => setSpeed(val as number[])}
+                  onValueChange={(val) => val && setSpeed(val as number[])}
                   min={0.5}
                   max={2.0}
                   step={0.1}
@@ -361,11 +361,11 @@ export function ProgramPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>音量</Label>
-                  <span className="text-sm text-muted-foreground">{volume[0].toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{(volume[0] ?? 1.0).toFixed(1)}</span>
                 </div>
                 <Slider
                   value={volume}
-                  onValueChange={(val) => setVolume(val as number[])}
+                  onValueChange={(val) => val && setVolume(val as number[])}
                   min={0.1}
                   max={10.0}
                   step={0.1}
@@ -376,11 +376,11 @@ export function ProgramPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>ピッチ</Label>
-                  <span className="text-sm text-muted-foreground">{pitch[0] > 0 ? `+${pitch[0]}` : pitch[0]}</span>
+                  <span className="text-sm text-muted-foreground">{(pitch[0] ?? 0) > 0 ? `+${pitch[0]}` : (pitch[0] ?? 0)}</span>
                 </div>
                 <Slider
                   value={pitch}
-                  onValueChange={(val) => setPitch(val as number[])}
+                  onValueChange={(val) => val && setPitch(val as number[])}
                   min={-12}
                   max={12}
                   step={1}
@@ -483,11 +483,11 @@ export function ProgramPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>BGM音量</Label>
-                  <span className="text-sm text-muted-foreground">{bgmVolume[0].toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{(bgmVolume[0] ?? 0.3).toFixed(1)}</span>
                 </div>
                 <Slider
                   value={bgmVolume}
-                  onValueChange={(val) => setBgmVolume(val as number[])}
+                  onValueChange={(val) => val && setBgmVolume(val as number[])}
                   min={0}
                   max={1.0}
                   step={0.05}
