@@ -111,11 +111,14 @@ function detectSpeakers(script: string): string[] {
 
 function normalizeScript(script: string): string {
   if (hasSpeakerTags(script)) return script
-  return script
-    .split("\n")
-    .filter((l) => l.trim())
-    .map((l) => `[${DEFAULT_SPEAKER}] ${l}`)
-    .join("\n")
+  // 句点（。！？）で文を分割し、各文を1行にする
+  const sentences = script
+    .replace(/\n+/g, "")
+    .split(/(?<=[。！？])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+  if (sentences.length === 0) return script
+  return sentences.map((s) => `[${DEFAULT_SPEAKER}] ${s}`).join("\n")
 }
 
 // --- コンポーネント ---
