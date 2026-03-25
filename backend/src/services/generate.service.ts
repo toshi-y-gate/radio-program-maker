@@ -48,7 +48,10 @@ function splitLongText(text: string, maxLen = 500): string[] {
   return chunks;
 }
 
-function parseScript(script: string): { speaker: string; text: string }[] {
+function parseScript(
+  script: string,
+  speakerNames: string[]
+): { speaker: string; text: string }[] {
   const lines = script.split("\n").filter((l) => l.trim());
   const patterns = [
     /^\[(.+?)\]\s*(.+)$/,
@@ -59,6 +62,7 @@ function parseScript(script: string): { speaker: string; text: string }[] {
 
   const result: { speaker: string; text: string }[] = [];
   for (const line of lines) {
+    let matched = false;
     for (const pattern of patterns) {
       const match = line.match(pattern);
       if (match) {
@@ -67,7 +71,22 @@ function parseScript(script: string): { speaker: string; text: string }[] {
         for (const chunk of splitLongText(text)) {
           result.push({ speaker, text: chunk });
         }
+        matched = true;
         break;
+      }
+    }
+    if (!matched) {
+      // タグなしのテキスト行 → 最初の話者名で句点分割
+      const defaultSpeaker = speakerNames[0] || "ナレーター";
+      const rawText = line.trim();
+      const sentences = rawText
+        .split(/(?<=[。！？])/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      for (const sentence of sentences) {
+        for (const chunk of splitLongText(sentence)) {
+          result.push({ speaker: defaultSpeaker, text: chunk });
+        }
       }
     }
   }
@@ -157,12 +176,11 @@ export async function generateRadio(
   ensureDir(CACHE_DIR);
   ensureDir(OUTPUT_DIR);
 
-  const parsedLines = parseScript(script);
+  const speakerMap = new Map(speakers.map((s) => [s.speaker, s.voiceId]));
+  const parsedLines = parseScript(script, speakers.map((s) => s.speaker));
   if (parsedLines.length === 0) {
     throw new Error("スクリプトからセリフを検出できませんでした");
   }
-
-  const speakerMap = new Map(speakers.map((s) => [s.speaker, s.voiceId]));
   const audioBuffers: Buffer[] = [];
   const uniqueSpeakers = [...new Set(parsedLines.map((l) => l.speaker))];
 
