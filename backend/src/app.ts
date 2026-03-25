@@ -70,7 +70,6 @@ app.use("/api", async (_req, _res, next) => {
 
 app.use(
   "/output",
-  authMiddleware,
   express.static(path.resolve(__dirname, "../output"))
 );
 
