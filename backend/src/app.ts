@@ -58,6 +58,40 @@ app.get("/health", async (_req, res) => {
   }
 });
 
+// Debug: Script parsing test
+app.post("/debug/parse-test", express.json(), (req, res) => {
+  const script = req.body.script || "";
+  const lines = script.split("\n").filter((l: string) => l.trim());
+  const patterns = [/^\[(.+?)\]\s*(.+)$/,/^【(.+?)】\s*(.+)$/,/^(.+?):\s*(.+)$/,/^(.+?)：\s*(.+)$/];
+
+  function splitLongText(text: string, maxLen = 500): string[] {
+    if (text.length <= maxLen) return [text];
+    const chunks: string[] = [];
+    const sentences = text.split(/(?<=[。！？\n])/);
+    let current = "";
+    for (const s of sentences) {
+      if (current.length + s.length > maxLen && current.length > 0) { chunks.push(current.trim()); current = ""; }
+      current += s;
+    }
+    if (current.trim()) chunks.push(current.trim());
+    return chunks;
+  }
+
+  const result: { speaker: string; textLen: number; preview: string }[] = [];
+  for (const line of lines) {
+    for (const pattern of patterns) {
+      const match = line.match(pattern);
+      if (match) {
+        for (const chunk of splitLongText(match[2].trim())) {
+          result.push({ speaker: match[1].trim(), textLen: chunk.length, preview: chunk.substring(0, 30) });
+        }
+        break;
+      }
+    }
+  }
+  res.json({ totalLines: lines.length, totalChunks: result.length, scriptLen: script.length, chunks: result });
+});
+
 // Debug: MiniMax TTS test endpoint
 app.get("/debug/tts-test", async (_req, res) => {
   try {
