@@ -5,32 +5,13 @@ import type {
   PresetVoice,
 } from "../../types"
 import { API_PATHS } from "../../types"
-import { get, del } from "./client"
+import { get, del, postFormData } from "./client"
 
-const RAILWAY_API = "https://radio-program-maker-production.up.railway.app"
-
-export async function createCustomVoice(request: CreateVoiceRequest): Promise<CreateVoiceResponse> {
+export function createCustomVoice(request: CreateVoiceRequest): Promise<CreateVoiceResponse> {
   const formData = new FormData()
   formData.append("name", request.name)
   formData.append("sample", request.sampleFile)
-
-  const token = localStorage.getItem("token")
-  const headers: HeadersInit = {}
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`
-  }
-
-  const response = await fetch(`${RAILWAY_API}${API_PATHS.VOICES_CUSTOM}`, {
-    method: "POST",
-    headers,
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ error: response.statusText }))
-    throw new Error(body.error || "ボイスの作成に失敗しました")
-  }
-  return response.json()
+  return postFormData<CreateVoiceResponse>(API_PATHS.VOICES_CUSTOM, formData)
 }
 
 export function getCustomVoices(): Promise<CustomVoice[]> {

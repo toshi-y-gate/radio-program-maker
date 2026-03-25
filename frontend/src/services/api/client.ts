@@ -20,8 +20,8 @@ function getAuthHeaders(): HeadersInit {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: response.statusText }))
-    throw new ApiError(response.status, body.message || response.statusText)
+    const body = await response.json().catch(() => ({ error: response.statusText }))
+    throw new ApiError(response.status, body.error || body.message || response.statusText)
   }
   if (response.status === 204) {
     return undefined as T
