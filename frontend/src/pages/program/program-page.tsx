@@ -155,8 +155,13 @@ export function ProgramPage() {
 
   // テンプレート選択
   function handleTemplateSelect(templateId: string) {
-    setSelectedTemplate(templateId)
     const tpl = TEMPLATES.find((t) => t.id === templateId)
+    if (script.trim() && tpl && tpl.script) {
+      if (!window.confirm("現在のスクリプトが上書きされます。よろしいですか？")) {
+        return
+      }
+    }
+    setSelectedTemplate(templateId)
     if (tpl && tpl.script) {
       setScript(tpl.script)
     }
