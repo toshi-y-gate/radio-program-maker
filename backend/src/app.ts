@@ -72,7 +72,7 @@ app.use(
     res: express.Response,
     _next: express.NextFunction
   ) => {
-    console.error("Unhandled error:", err.message);
+    console.error("Unhandled error:", err.message, err.stack);
     res.status(500).json({ error: "内部サーバーエラーが発生しました" });
   }
 );

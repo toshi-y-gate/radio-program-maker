@@ -35,17 +35,21 @@ export async function login(
   email: string,
   password: string
 ): Promise<AuthResult> {
+  console.log("[login] Finding user:", email);
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
     throw new Error("メールアドレスまたはパスワードが正しくありません");
   }
+  console.log("[login] User found, verifying password");
 
   const valid = await verifyPassword(password, user.password);
+  console.log("[login] Password valid:", valid);
   if (!valid) {
     throw new Error("メールアドレスまたはパスワードが正しくありません");
   }
 
   const token = generateToken(user.id);
+  console.log("[login] Token generated");
   return {
     user: { email: user.email, displayName: user.displayName },
     token,
