@@ -164,11 +164,12 @@ async function callMinimaxTTS(
 
 function getSpeechDuration(filePath: string): number {
   try {
+    // ffmpegに-iだけ渡してstderrからDuration情報を取得（デコード不要で高速）
     const result = execSync(
-      `"${ffmpegPath}" -i "${filePath}" -f null - 2>&1 | grep "time=" | tail -1`,
-      { timeout: 30000, shell: "/bin/bash" }
+      `"${ffmpegPath}" -i "${filePath}" 2>&1 || true`,
+      { timeout: 5000, shell: "/bin/bash" }
     ).toString();
-    const match = result.match(/time=(\d+):(\d+):(\d+\.\d+)/);
+    const match = result.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
     if (match) {
       return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3]);
     }
