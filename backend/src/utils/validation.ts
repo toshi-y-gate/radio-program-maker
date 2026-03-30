@@ -41,6 +41,7 @@ export const generateSchema = z.object({
       "background", "intro", "outro", "intro_outro", "full",
     ]),
     volume: z.number().min(0).max(1),
+    outroDuration: z.number().min(0).max(15).default(5),
   }).optional(),
 });
 

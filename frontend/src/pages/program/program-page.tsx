@@ -143,6 +143,7 @@ export function ProgramPage() {
   const [bgmFile, setBgmFile] = useState<File | null>(null)
   const [bgmMode, setBgmMode] = useState<BGMInsertMode>("background")
   const [bgmVolume, setBgmVolume] = useState([0.3])
+  const [bgmOutroDuration, setBgmOutroDuration] = useState([5])
   const [bgmDragOver, setBgmDragOver] = useState(false)
 
   // フック
@@ -187,7 +188,7 @@ export function ProgramPage() {
         model: effectiveModel,
       },
       bgm: bgmFile
-        ? { insertMode: bgmMode, volume: bgmVolume[0] }
+        ? { insertMode: bgmMode, volume: bgmVolume[0], outroDuration: bgmOutroDuration[0] }
         : undefined,
     }, bgmFile || undefined)
   }
@@ -541,6 +542,22 @@ export function ProgramPage() {
                   max={1.0}
                   step={0.05}
                 />
+              </div>
+
+              {/* アウトロ（フェードアウト） */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>アウトロ（フェードアウト）</Label>
+                  <span className="text-sm text-muted-foreground">{bgmOutroDuration[0]}秒</span>
+                </div>
+                <Slider
+                  value={bgmOutroDuration}
+                  onValueChange={(val) => setBgmOutroDuration(Array.isArray(val) ? val : [val])}
+                  min={0}
+                  max={15}
+                  step={1}
+                />
+                <p className="text-xs text-muted-foreground">台本終了後、BGMが徐々に消えていく時間</p>
               </div>
             </CardContent>
           </Card>

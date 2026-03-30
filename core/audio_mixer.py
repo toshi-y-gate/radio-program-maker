@@ -45,7 +45,7 @@ def add_bgm(
         # イントロ（BGMのみ）+ 音声 + アウトロ（BGMのみ）
         intro_bgm = bgm_loop[:intro_duration_ms].fade_in(1000)
         main_bgm = bgm_loop[intro_duration_ms:intro_duration_ms + len(voice_audio)]
-        outro_bgm = bgm_loop[intro_duration_ms + len(voice_audio):].fade_out(2000)
+        outro_bgm = bgm_loop[intro_duration_ms + len(voice_audio):].fade_out(outro_duration_ms)
 
         result = intro_bgm + voice_audio.overlay(main_bgm) + outro_bgm
 
@@ -54,12 +54,12 @@ def add_bgm(
         result = intro_bgm + voice_audio
 
     elif bgm_mode == "outro":
-        outro_bgm = _loop_bgm(bgm, outro_duration_ms).fade_in(1000).fade_out(2000)
+        outro_bgm = _loop_bgm(bgm, outro_duration_ms).fade_in(1000).fade_out(outro_duration_ms)
         result = voice_audio + outro_bgm
 
     elif bgm_mode == "intro_outro":
         intro_bgm = _loop_bgm(bgm, intro_duration_ms).fade_in(1000).fade_out(1000)
-        outro_bgm = _loop_bgm(bgm, outro_duration_ms).fade_in(1000).fade_out(2000)
+        outro_bgm = _loop_bgm(bgm, outro_duration_ms).fade_in(1000).fade_out(outro_duration_ms)
         result = intro_bgm + voice_audio + outro_bgm
 
     else:

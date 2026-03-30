@@ -18,7 +18,7 @@ type Settings = {
   emotion: string;
   model: string;
 };
-type BgmOptions = { insertMode: string; volume: number } | undefined;
+type BgmOptions = { insertMode: string; volume: number; outroDuration?: number } | undefined;
 
 function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {
@@ -162,17 +162,48 @@ async function callMinimaxTTS(
   return buf;
 }
 
+function getSpeechDuration(filePath: string): number {
+  try {
+    const result = execSync(
+      `"${ffmpegPath}" -i "${filePath}" -f null - 2>&1 | grep "time=" | tail -1`,
+      { timeout: 30000, shell: "/bin/bash" }
+    ).toString();
+    const match = result.match(/time=(\d+):(\d+):(\d+\.\d+)/);
+    if (match) {
+      return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3]);
+    }
+  } catch {}
+  return 0;
+}
+
 function mixBgm(
   speechPath: string,
   bgmFilePath: string,
   bgmVolume: number,
-  outputPath: string
+  outputPath: string,
+  outroDurationSec: number = 5
 ): void {
-  // Overlay BGM at specified volume, match speech duration
-  execSync(
-    `"${ffmpegPath}" -i "${speechPath}" -i "${bgmFilePath}" -filter_complex "[1:a]aloop=loop=-1:size=2e+09,volume=${bgmVolume}[bgm];[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[out]" -map "[out]" -y "${outputPath}" 2>/dev/null`,
-    { timeout: 120000 }
-  );
+  const speechDuration = getSpeechDuration(speechPath);
+  const totalDuration = speechDuration > 0 ? speechDuration + outroDurationSec : 0;
+
+  if (totalDuration > 0) {
+    // BGMをループ→音声+アウトロ分の長さにカット→アウトロ部分でフェードアウト
+    const fadeStart = speechDuration;
+    execSync(
+      `"${ffmpegPath}" -i "${speechPath}" -i "${bgmFilePath}" -filter_complex "` +
+        `[1:a]aloop=loop=-1:size=2e+09,volume=${bgmVolume},atrim=0:${totalDuration},afade=t=out:st=${fadeStart}:d=${outroDurationSec}[bgm];` +
+        `[0:a]apad=pad_dur=${outroDurationSec}[speech];` +
+        `[speech][bgm]amix=inputs=2:duration=longest:dropout_transition=0[out]` +
+        `" -map "[out]" -y "${outputPath}" 2>/dev/null`,
+      { timeout: 120000 }
+    );
+  } else {
+    // フォールバック: 音声長さ取得失敗時は従来方式+dropout_transitionでフェードアウト
+    execSync(
+      `"${ffmpegPath}" -i "${speechPath}" -i "${bgmFilePath}" -filter_complex "[1:a]aloop=loop=-1:size=2e+09,volume=${bgmVolume}[bgm];[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=5[out]" -map "[out]" -y "${outputPath}" 2>/dev/null`,
+      { timeout: 120000 }
+    );
+  }
 }
 
 export async function generateRadio(
@@ -249,7 +280,7 @@ export async function generateRadio(
     const tempSpeechPath = path.join(OUTPUT_DIR, `temp_speech_${Date.now()}.mp3`);
     fs.renameSync(outputPath, tempSpeechPath);
     try {
-      mixBgm(tempSpeechPath, bgmFilePath, bgmOptions.volume, outputPath);
+      mixBgm(tempSpeechPath, bgmFilePath, bgmOptions.volume, outputPath, bgmOptions.outroDuration ?? 5);
       console.log("[generate] BGM mixed successfully");
     } catch (err) {
       console.error("[generate] BGM mix failed, using speech only:", err instanceof Error ? err.message : err);

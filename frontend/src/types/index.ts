@@ -69,6 +69,7 @@ export type GenerateRequest = {
   bgm?: {
     insertMode: BGMInsertMode
     volume: number
+    outroDuration?: number
   }
 }
 
