@@ -20,6 +20,11 @@ function getAuthHeaders(): HeadersInit {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem("token")
+      window.location.href = "/login"
+      throw new ApiError(401, "セッションが切れました。再ログインしてください")
+    }
     const body = await response.json().catch(() => ({ error: response.statusText }))
     throw new ApiError(response.status, body.error || body.message || response.statusText)
   }

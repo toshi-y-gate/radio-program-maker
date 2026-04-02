@@ -27,6 +27,11 @@ export async function createCustomVoice(request: CreateVoiceRequest): Promise<Cr
   })
 
   if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem("token")
+      window.location.href = "/login"
+      throw new Error("セッションが切れました。再ログインしてください")
+    }
     const body = await response.json().catch(() => ({ error: "ボイスの作成に失敗しました" }))
     throw new Error(body.error || "ボイスの作成に失敗しました")
   }
