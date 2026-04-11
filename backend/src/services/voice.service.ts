@@ -6,23 +6,18 @@ const ffmpegPath = require("ffmpeg-static") as string;
 import { prisma } from "../db";
 import { config } from "../config";
 
+// ElevenLabs preset voices (multilingual v2 対応)
 const PRESET_VOICES = [
-  { id: "Japanese_IntellectualSenior", name: "知的な紳士", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_LoyalKnight", name: "誠実な騎士", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_DominantMan", name: "力強い男性", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_SeriousCommander", name: "真剣な指揮官", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_GentleButler", name: "優しい執事", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_OptimisticYouth", name: "明るい青年", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_GenerousIzakayaOwner", name: "居酒屋の大将", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_DecisivePrincess", name: "凛としたお嬢様", language: "ja" as const, gender: "female" as const },
-  { id: "Japanese_ColdQueen", name: "クールな女王", language: "ja" as const, gender: "female" as const },
-  { id: "Japanese_DependableWoman", name: "頼れる女性", language: "ja" as const, gender: "female" as const },
-  { id: "Japanese_KindLady", name: "優しい淑女", language: "ja" as const, gender: "female" as const },
-  { id: "Japanese_CalmLady", name: "落ち着いた女性", language: "ja" as const, gender: "female" as const },
-  { id: "Japanese_GracefulMaiden", name: "上品な乙女", language: "ja" as const, gender: "female" as const },
-  { id: "Japanese_Whisper_Belle", name: "ささやきの美女", language: "ja" as const, gender: "female" as const },
-  { id: "Japanese_SportyStudent", name: "スポーツ少年", language: "ja" as const, gender: "male" as const },
-  { id: "Japanese_InnocentBoy", name: "無邪気な少年", language: "ja" as const, gender: "male" as const },
+  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam（落ち着いた男性）", language: "ja" as const, gender: "male" as const },
+  { id: "ErXwobaYiN019PkySvjV", name: "Antoni（温かい男性）", language: "ja" as const, gender: "male" as const },
+  { id: "VR6AewLTigWG4xSOukaG", name: "Arnold（力強い男性）", language: "ja" as const, gender: "male" as const },
+  { id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh（若い男性）", language: "ja" as const, gender: "male" as const },
+  { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam（誠実な男性）", language: "ja" as const, gender: "male" as const },
+  { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel（知的な女性）", language: "ja" as const, gender: "female" as const },
+  { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella（明るい女性）", language: "ja" as const, gender: "female" as const },
+  { id: "MF3mGyEYCl7XYWbV9V6O", name: "Elli（若い女性）", language: "ja" as const, gender: "female" as const },
+  { id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte（上品な女性）", language: "ja" as const, gender: "female" as const },
+  { id: "jBpfuIE2acCO8z3wKNLl", name: "Gigi（元気な女性）", language: "ja" as const, gender: "female" as const },
 ];
 
 export function getPresetVoices() {
@@ -72,75 +67,32 @@ function prepareAudioForClone(filePath: string): string {
   return outputPath;
 }
 
-async function registerVoiceWithMinimax(
+async function registerVoiceWithElevenLabs(
   filePath: string,
-  voiceId: string
-): Promise<void> {
-  // Step 0: Prepare audio (convert to MP3, trim to 2min, reduce size)
+  voiceName: string
+): Promise<string> {
   const preparedPath = prepareAudioForClone(filePath);
-
-  // Step 1: Upload prepared file to MiniMax
   const fileBuffer = fs.readFileSync(preparedPath);
-  const fileName = path.basename(preparedPath);
   const blob = new Blob([fileBuffer]);
   const formData = new FormData();
-  formData.append("purpose", "voice_clone");
-  formData.append("file", blob, fileName);
+  formData.append("name", voiceName);
+  formData.append("files", blob, path.basename(preparedPath));
 
-  const uploadResp = await fetch("https://api.minimax.io/v1/files/upload", {
+  const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
     method: "POST",
-    headers: { Authorization: `Bearer ${config.minimaxApiKey}` },
+    headers: { "xi-api-key": config.elevenlabsApiKey },
     body: formData,
   });
 
-  if (!uploadResp.ok) {
-    const err = await uploadResp.text();
-    throw new Error(`MiniMax file upload failed: ${err}`);
-  }
-
-  const uploadData = (await uploadResp.json()) as {
-    file?: { file_id?: string };
-    base_resp?: { status_code: number; status_msg?: string };
-  };
-  const fileId = uploadData.file?.file_id;
-  if (!fileId) {
-    throw new Error(
-      `MiniMax file upload returned no file_id: ${uploadData.base_resp?.status_msg || "unknown"}`
-    );
-  }
-
-  // Step 2: Clone voice
-  const cloneResp = await fetch("https://api.minimax.io/v1/voice_clone", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.minimaxApiKey}`,
-    },
-    body: JSON.stringify({
-      file_id: fileId,
-      voice_id: voiceId,
-      noise_reduction: true,
-      need_volume_normalization: true,
-    }),
-  });
-
-  if (!cloneResp.ok) {
-    const err = await cloneResp.text();
-    throw new Error(`MiniMax voice clone failed: ${err}`);
-  }
-
-  const cloneData = (await cloneResp.json()) as {
-    base_resp?: { status_code: number; status_msg?: string };
-  };
-  if (cloneData.base_resp?.status_code !== 0) {
+  if (!response.ok) {
+    const err = await response.text();
     fs.unlinkSync(preparedPath);
-    throw new Error(
-      `MiniMax voice clone error: ${cloneData.base_resp?.status_msg || "unknown"}`
-    );
+    throw new Error(`ElevenLabs voice clone failed: ${err}`);
   }
 
-  // Cleanup prepared file
+  const data = (await response.json()) as { voice_id: string };
   fs.unlinkSync(preparedPath);
+  return data.voice_id;
 }
 
 export async function createCustomVoice(
@@ -148,9 +100,6 @@ export async function createCustomVoice(
   name: string,
   sampleUrl: string
 ) {
-  // Generate a MiniMax-compatible voice_id (alphanumeric, starts with letter, min 8 chars)
-  const minimaxVoiceId = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
   const voice = await prisma.customVoice.create({
     data: {
       name,
@@ -160,16 +109,22 @@ export async function createCustomVoice(
     },
   });
 
-  // Register with MiniMax API in background
   const uploadsDir = path.resolve(__dirname, "../../uploads");
   const filePath = path.join(uploadsDir, path.basename(sampleUrl));
 
   try {
-    await registerVoiceWithMinimax(filePath, minimaxVoiceId);
+    const elevenLabsVoiceId = await registerVoiceWithElevenLabs(filePath, name);
     await prisma.customVoice.update({
       where: { id: voice.id },
-      data: { status: "available", sampleUrl: minimaxVoiceId },
+      data: { status: "available", sampleUrl: elevenLabsVoiceId },
     });
+    return {
+      id: voice.id,
+      name: voice.name,
+      createdAt: voice.createdAt.toISOString(),
+      status: "available" as const,
+      sampleUrl: elevenLabsVoiceId,
+    };
   } catch (err) {
     console.error("Voice clone failed:", err instanceof Error ? err.message : err);
     await prisma.customVoice.update({
@@ -178,14 +133,6 @@ export async function createCustomVoice(
     });
     throw err;
   }
-
-  return {
-    id: voice.id,
-    name: voice.name,
-    createdAt: voice.createdAt.toISOString(),
-    status: "available" as const,
-    sampleUrl: minimaxVoiceId,
-  };
 }
 
 export async function deleteCustomVoice(userId: string, voiceId: string) {

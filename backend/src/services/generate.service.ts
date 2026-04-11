@@ -13,9 +13,8 @@ const OUTPUT_DIR = path.resolve(__dirname, "../../output");
 type Speaker = { speaker: string; voiceId: string };
 type Settings = {
   speed: number;
-  volume: number;
-  pitch: number;
-  emotion: string;
+  stability: number;
+  similarityBoost: number;
   model: string;
 };
 type BgmOptions = { insertMode: string; volume: number; outroDuration?: number } | undefined;
@@ -31,7 +30,7 @@ function generateCacheKey(
   voiceId: string,
   settings: Settings
 ): string {
-  const input = `${text}|${voiceId}|${settings.model}|${settings.speed}|${settings.volume}|${settings.pitch}|${settings.emotion}`;
+  const input = `${text}|${voiceId}|${settings.model}|${settings.speed}|${settings.stability}|${settings.similarityBoost}`;
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
@@ -89,76 +88,44 @@ function parseScript(
   return result;
 }
 
-async function callMinimaxTTS(
+async function callElevenLabsTTS(
   text: string,
   voiceId: string,
   settings: Settings
 ): Promise<Buffer> {
-  if (!config.minimaxApiKey) {
-    throw new Error("MINIMAX_API_KEY is not configured");
+  if (!config.elevenlabsApiKey) {
+    throw new Error("ELEVENLABS_API_KEY is not configured");
   }
 
-  const response = await fetch("https://api.minimax.io/v1/t2a_v2", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.minimaxApiKey}`,
-    },
-    body: JSON.stringify({
-      model: settings.model,
-      text,
-      stream: false,
-      language_boost: "Japanese",
-      voice_setting: {
-        voice_id: voiceId,
-        speed: settings.speed,
-        vol: settings.volume,
-        pitch: settings.pitch,
-        emotion: settings.emotion,
+  const response = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": config.elevenlabsApiKey,
+        Accept: "audio/mpeg",
       },
-      audio_setting: {
-        format: "mp3",
-        sample_rate: 44100,
-      },
-    }),
-  });
+      body: JSON.stringify({
+        text,
+        model_id: settings.model,
+        voice_settings: {
+          stability: settings.stability,
+          similarity_boost: settings.similarityBoost,
+          speed: settings.speed,
+        },
+      }),
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`MiniMax API error: ${response.status} ${errorText}`);
+    throw new Error(`ElevenLabs API error: ${errorText}`);
   }
 
-  const data = (await response.json()) as {
-    base_resp?: { status_code: number; status_msg?: string };
-    data?: { audio?: string };
-  };
-  if (data.base_resp?.status_code !== 0) {
-    throw new Error(
-      `MiniMax API error: ${data.base_resp?.status_msg || "Unknown error"}`
-    );
-  }
-
-  const audioData = data.data?.audio;
-  if (!audioData) {
-    throw new Error("MiniMax API returned no audio data");
-  }
-
-  // MiniMax T2A v2 returns hex-encoded audio
-  // Check if it starts with valid MP3 hex signature (fff3, fffa, fffb, 4944)
-  const firstBytes = audioData.substring(0, 8).toLowerCase();
-  console.log(`[tts] Audio data: length=${audioData.length}, first8=${firstBytes}`);
-
-  // Try hex decode first, check if result is valid MP3
-  const hexBuf = Buffer.from(audioData, "hex");
-  const b64Buf = Buffer.from(audioData, "base64");
-
-  // MP3 starts with 0xff or 0x49 (ID3), pick the one that looks right
-  const hexHead = hexBuf.length > 0 ? hexBuf[0] : 0;
-  const b64Head = b64Buf.length > 0 ? b64Buf[0] : 0;
-
-  const useHex = hexHead === 0xff || hexHead === 0x49;
-  const buf = useHex ? hexBuf : b64Buf;
-  console.log(`[tts] Decoded as ${useHex ? "hex" : "base64"}: ${buf.length} bytes, head=0x${buf.slice(0, 2).toString("hex")}`);
+  const arrayBuf = await response.arrayBuffer();
+  const buf = Buffer.from(arrayBuf);
+  console.log(`[tts] ElevenLabs: ${buf.length} bytes`);
   return buf;
 }
 
@@ -242,7 +209,7 @@ export async function generateRadio(
       audioBuffers.push(fs.readFileSync(cachePath));
     } else {
       console.log(`[generate] Chunk ${i + 1}/${parsedLines.length}: calling API (${line.text.length} chars)`);
-      const audio = await callMinimaxTTS(line.text, voiceId, settings);
+      const audio = await callElevenLabsTTS(line.text, voiceId, settings);
       console.log(`[generate] Chunk ${i + 1}: got ${audio.length} bytes`);
       fs.writeFileSync(cachePath, audio);
       audioBuffers.push(audio);

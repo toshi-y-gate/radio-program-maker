@@ -5,11 +5,10 @@ import streamlit as st
 from datetime import datetime
 from pydub import AudioSegment
 
-from core.config import MINIMAX_API_KEY, PRESET_VOICES, BGM_DIR, OUTPUT_DIR, SCRIPT_TEMPLATES, SUPPORTED_LANGUAGES
+from core.config import ELEVENLABS_API_KEY, PRESET_VOICES, BGM_DIR, OUTPUT_DIR, SCRIPT_TEMPLATES, SUPPORTED_LANGUAGES
 from core.tts import (
     text_to_speech,
     test_connection,
-    upload_voice_file,
     clone_voice,
     load_custom_voices,
     save_custom_voice,
@@ -290,7 +289,7 @@ def show_main_app():
         )
 
         if st.button("🎙️ ボイスクローンを作成", type="primary", disabled=not (clone_file and clone_name and clone_id)):
-            if not MINIMAX_API_KEY:
+            if not ELEVENLABS_API_KEY:
                 st.error("APIキーが設定されていません。`.env` ファイルを確認してください。")
             else:
                 with st.spinner("音声ファイルをアップロード中..."):
@@ -519,7 +518,7 @@ def show_main_app():
                     gen_model = model
 
                 if generate_clicked:
-                    if not MINIMAX_API_KEY:
+                    if not ELEVENLABS_API_KEY:
                         st.error("APIキーが設定されていません。`.env` ファイルを確認してください。")
                     else:
                         # モデル表示

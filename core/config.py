@@ -3,20 +3,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
-MINIMAX_API_URL = "https://api.minimax.io/v1/t2a_v2"
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 
-DEFAULT_MODEL = "speech-2.8-hd"
+DEFAULT_MODEL = "eleven_multilingual_v2"
 
 PRESET_VOICES = {
-    "Japanese_Whisper_Belle": "日本語 - ウィスパーベル（女性）",
-    "moss_audio_24875c4a-7be4-11f0-9359-4e72c55db738": "日本語 - 男性A",
-    "moss_audio_7f4ee608-78ea-11f0-bb73-1e2a4cfcd245": "日本語 - 男性B",
-    "moss_audio_c1a6a3ac-7be6-11f0-8e8e-36b92fbb4f95": "日本語 - 女性A",
-    "English_Graceful_Lady": "英語 - グレイスフルレディ（女性）",
-    "English_Persuasive_Man": "英語 - パースエイシブマン（男性）",
-    "English_radiant_girl": "英語 - ラディアントガール（女性）",
-    "English_Insightful_Speaker": "英語 - インサイトフルスピーカー（男性）",
+    "pNInz6obpgDQGcFmaJgB": "Adam（落ち着いた男性）",
+    "ErXwobaYiN019PkySvjV": "Antoni（温かい男性）",
+    "VR6AewLTigWG4xSOukaG": "Arnold（力強い男性）",
+    "TxGEqnHWrfWFTfGW9XjX": "Josh（若い男性）",
+    "21m00Tcm4TlvDq8ikWAM": "Rachel（知的な女性）",
+    "EXAVITQu4vr4xnSDxMaL": "Bella（明るい女性）",
+    "MF3mGyEYCl7XYWbV9V6O": "Elli（若い女性）",
+    "XB0fDUnXU5powFXDhCwa": "Charlotte（上品な女性）",
 }
 
 SUPPORTED_LANGUAGES = {
@@ -62,17 +61,6 @@ SUPPORTED_LANGUAGES = {
     "Croatian": "クロアチア語",
 }
 
-LANGUAGE_VOICE_RECOMMENDATIONS = {
-    "Japanese": ["Japanese_Whisper_Belle", "moss_audio_24875c4a-7be4-11f0-9359-4e72c55db738"],
-    "English": ["English_Graceful_Lady", "English_Persuasive_Man"],
-}
-
-AUDIO_SETTINGS = {
-    "sample_rate": 44100,
-    "bitrate": 128000,
-    "format": "mp3",
-    "channel": 1,
-}
 
 SCRIPT_TEMPLATES = {
     "ニュース番組": {

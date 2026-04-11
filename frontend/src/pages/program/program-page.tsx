@@ -2,7 +2,7 @@ import { useState, useMemo } from "react"
 import { useGenerate } from "@/hooks/useGenerate"
 import { useVoicePresets } from "@/hooks/useVoicePresets"
 import { useVoices } from "@/hooks/useVoices"
-import type { Emotion, TTSModel, BGMInsertMode } from "@/types"
+import type { TTSModel, BGMInsertMode } from "@/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -59,16 +59,6 @@ const TEMPLATES = [
     description: "自由にスクリプトを作成",
     script: "",
   },
-] as const
-
-const EMOTIONS = [
-  { id: "neutral", label: "ニュートラル" },
-  { id: "happy", label: "嬉しい" },
-  { id: "sad", label: "悲しい" },
-  { id: "angry", label: "怒り" },
-  { id: "fearful", label: "恐怖" },
-  { id: "disgusted", label: "嫌悪" },
-  { id: "surprised", label: "驚き" },
 ] as const
 
 const BGM_MODES = [
@@ -132,11 +122,10 @@ export function ProgramPage() {
   const [voiceAssignments, setVoiceAssignments] = useState<Record<string, string>>({})
 
   // 設定
-  const [model, setModel] = useState<TTSModel>("speech-2.8-hd")
+  const [model, setModel] = useState<TTSModel>("eleven_multilingual_v2")
   const [speed, setSpeed] = useState([1.0])
-  const [volume, setVolume] = useState([3.0])
-  const [pitch, setPitch] = useState([0])
-  const [emotion, setEmotion] = useState<Emotion>("neutral")
+  const [stability, setStability] = useState([0.5])
+  const [similarityBoost, setSimilarityBoost] = useState([0.75])
   const [turboPreview, setTurboPreview] = useState(false)
 
   // BGM
@@ -170,7 +159,7 @@ export function ProgramPage() {
 
   // 生成処理
   function handleGenerate() {
-    const effectiveModel: TTSModel = turboPreview ? "speech-2.8-turbo" : model
+    const effectiveModel: TTSModel = turboPreview ? "eleven_turbo_v2_5" : model
     const defaultVoiceId = voicePresets.length > 0 ? voicePresets[0].id : ""
     const normalizedScript = normalizeScript(script)
 
@@ -182,9 +171,8 @@ export function ProgramPage() {
       })),
       settings: {
         speed: speed[0],
-        volume: volume[0],
-        pitch: pitch[0],
-        emotion,
+        stability: stability[0],
+        similarityBoost: similarityBoost[0],
         model: effectiveModel,
       },
       bgm: bgmFile
@@ -375,8 +363,8 @@ export function ProgramPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="speech-2.8-hd">speech-2.8-hd（高品質）</SelectItem>
-                    <SelectItem value="speech-2.8-turbo">speech-2.8-turbo（高速）</SelectItem>
+                    <SelectItem value="eleven_multilingual_v2">Multilingual v2（高品質）</SelectItem>
+                    <SelectItem value="eleven_turbo_v2_5">Turbo v2.5（高速）</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -398,53 +386,34 @@ export function ProgramPage() {
                 />
               </div>
 
-              {/* 音量 */}
+              {/* 安定性 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>音量</Label>
-                  <span className="text-sm text-muted-foreground">{(volume[0] ?? 3.0).toFixed(1)}</span>
+                  <Label>安定性</Label>
+                  <span className="text-sm text-muted-foreground">{(stability[0] ?? 0.5).toFixed(2)}</span>
                 </div>
                 <Slider
-                  value={volume}
-                  onValueChange={(val) => setVolume(Array.isArray(val) ? val : [val])}
-                  min={0.1}
-                  max={10.0}
-                  step={0.1}
+                  value={stability}
+                  onValueChange={(val) => setStability(Array.isArray(val) ? val : [val])}
+                  min={0}
+                  max={1.0}
+                  step={0.05}
                 />
               </div>
 
-              {/* ピッチ */}
+              {/* 類似度 */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>ピッチ</Label>
-                  <span className="text-sm text-muted-foreground">{(pitch[0] ?? 0) > 0 ? `+${pitch[0]}` : (pitch[0] ?? 0)}</span>
+                  <Label>類似度</Label>
+                  <span className="text-sm text-muted-foreground">{(similarityBoost[0] ?? 0.75).toFixed(2)}</span>
                 </div>
                 <Slider
-                  value={pitch}
-                  onValueChange={(val) => setPitch(Array.isArray(val) ? val : [val])}
-                  min={-12}
-                  max={12}
-                  step={1}
+                  value={similarityBoost}
+                  onValueChange={(val) => setSimilarityBoost(Array.isArray(val) ? val : [val])}
+                  min={0}
+                  max={1.0}
+                  step={0.05}
                 />
-              </div>
-
-              <Separator />
-
-              {/* 感情 */}
-              <div className="space-y-2">
-                <Label>感情</Label>
-                <Select value={emotion} onValueChange={(val) => setEmotion(val as Emotion)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EMOTIONS.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               <Separator />

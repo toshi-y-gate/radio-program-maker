@@ -23,26 +23,14 @@ export type HistoryItem = {
   durationSec: number
   settings: {
     speed: number
-    volume: number
-    pitch: number
-    emotion: string
+    stability: number
+    similarityBoost: number
   }
 }
 
 export type TTSModel =
-  | "speech-2.8-hd"
-  | "speech-2.8-turbo"
-  | "speech-2.6-hd"
-  | "speech-2.6-turbo"
-
-export type Emotion =
-  | "neutral"
-  | "happy"
-  | "sad"
-  | "angry"
-  | "fearful"
-  | "disgusted"
-  | "surprised"
+  | "eleven_multilingual_v2"
+  | "eleven_turbo_v2_5"
 
 export type BGMInsertMode =
   | "background"
@@ -53,9 +41,8 @@ export type BGMInsertMode =
 
 export type AudioSettings = {
   speed: number
-  volume: number
-  pitch: number
-  emotion: Emotion
+  stability: number
+  similarityBoost: number
   model: TTSModel
 }
 

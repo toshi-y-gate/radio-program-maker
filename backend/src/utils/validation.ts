@@ -25,15 +25,10 @@ export const generateSchema = z.object({
   ).min(1).max(4),
   settings: z.object({
     speed: z.number().min(0.5).max(2.0),
-    volume: z.number().min(0.1).max(10.0),
-    pitch: z.number().min(-12).max(12),
-    emotion: z.enum([
-      "neutral", "happy", "sad", "angry",
-      "fearful", "disgusted", "surprised",
-    ]),
+    stability: z.number().min(0).max(1.0),
+    similarityBoost: z.number().min(0).max(1.0),
     model: z.enum([
-      "speech-2.8-hd", "speech-2.8-turbo",
-      "speech-2.6-hd", "speech-2.6-turbo",
+      "eleven_multilingual_v2", "eleven_turbo_v2_5",
     ]),
   }),
   bgm: z.object({
