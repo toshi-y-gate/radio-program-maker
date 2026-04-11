@@ -134,7 +134,7 @@ export function ProgramPage() {
   // 設定
   const [model, setModel] = useState<TTSModel>("speech-2.8-hd")
   const [speed, setSpeed] = useState([1.0])
-  const [volume, setVolume] = useState([1.0])
+  const [volume, setVolume] = useState([3.0])
   const [pitch, setPitch] = useState([0])
   const [emotion, setEmotion] = useState<Emotion>("neutral")
   const [turboPreview, setTurboPreview] = useState(false)
@@ -142,7 +142,7 @@ export function ProgramPage() {
   // BGM
   const [bgmFile, setBgmFile] = useState<File | null>(null)
   const [bgmMode, setBgmMode] = useState<BGMInsertMode>("background")
-  const [bgmVolume, setBgmVolume] = useState([0.3])
+  const [bgmVolume, setBgmVolume] = useState([1.0])
   const [bgmOutroDuration, setBgmOutroDuration] = useState([5])
   const [bgmDragOver, setBgmDragOver] = useState(false)
 
@@ -402,7 +402,7 @@ export function ProgramPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>音量</Label>
-                  <span className="text-sm text-muted-foreground">{(volume[0] ?? 1.0).toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{(volume[0] ?? 3.0).toFixed(1)}</span>
                 </div>
                 <Slider
                   value={volume}
@@ -490,10 +490,15 @@ export function ProgramPage() {
                 <div
                   className={`cursor-pointer rounded-lg border-2 border-dashed p-4 text-center transition-colors hover:bg-muted/50 ${bgmDragOver ? "border-primary bg-primary/5" : "border-border"}`}
                   onClick={() => document.getElementById("bgm-upload")?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setBgmDragOver(true); }}
-                  onDragLeave={(e) => { e.preventDefault(); setBgmDragOver(false); }}
+                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setBgmDragOver(true); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    if (e.currentTarget === e.target) setBgmDragOver(false);
+                  }}
                   onDrop={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     setBgmDragOver(false);
                     const file = e.dataTransfer.files[0];
                     if (file) setBgmFile(file);
@@ -533,7 +538,7 @@ export function ProgramPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>BGM音量</Label>
-                  <span className="text-sm text-muted-foreground">{(bgmVolume[0] ?? 0.3).toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{(bgmVolume[0] ?? 1.0).toFixed(1)}</span>
                 </div>
                 <Slider
                   value={bgmVolume}
