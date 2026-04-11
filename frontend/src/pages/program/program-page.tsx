@@ -142,7 +142,7 @@ export function ProgramPage() {
   // BGM
   const [bgmFile, setBgmFile] = useState<File | null>(null)
   const [bgmMode, setBgmMode] = useState<BGMInsertMode>("background")
-  const [bgmVolume, setBgmVolume] = useState([1.0])
+  const [bgmVolume, setBgmVolume] = useState([0.1])
   const [bgmOutroDuration, setBgmOutroDuration] = useState([5])
   const [bgmDragOver, setBgmDragOver] = useState(false)
 
@@ -538,7 +538,7 @@ export function ProgramPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>BGM音量</Label>
-                  <span className="text-sm text-muted-foreground">{(bgmVolume[0] ?? 1.0).toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{(bgmVolume[0] ?? 0.1).toFixed(1)}</span>
                 </div>
                 <Slider
                   value={bgmVolume}
