@@ -109,6 +109,7 @@ async function callElevenLabsTTS(
       body: JSON.stringify({
         text,
         model_id: settings.model,
+        language_code: "ja",
         voice_settings: {
           stability: settings.stability,
           similarity_boost: settings.similarityBoost,
