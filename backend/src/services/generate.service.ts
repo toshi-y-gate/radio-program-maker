@@ -140,7 +140,7 @@ async function callElevenLabsTTS(
   }
 
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
     {
       method: "POST",
       headers: {
@@ -153,8 +153,8 @@ async function callElevenLabsTTS(
         model_id: "eleven_multilingual_v2",
         language_code: "ja",
         voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
+          stability: 0.7,
+          similarity_boost: 0.85,
           speed: settings.speed,
         },
       }),
