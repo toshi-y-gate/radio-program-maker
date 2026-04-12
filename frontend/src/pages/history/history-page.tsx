@@ -41,15 +41,6 @@ function truncateScript(script: string): string {
   return truncated.length > 100 ? truncated.slice(0, 100) + "..." : truncated
 }
 
-const EMOTION_LABELS: Record<string, string> = {
-  neutral: "ニュートラル",
-  happy: "嬉しい",
-  sad: "悲しい",
-  angry: "怒り",
-  fearful: "恐怖",
-  disgusted: "嫌悪",
-  surprised: "驚き",
-}
 
 // --- コンポーネント ---
 
@@ -82,8 +73,8 @@ function HistoryCard({
         {/* ヘッダ: 日時 + モデル + 長さ */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">{item.timestamp}</span>
-          <Badge variant={item.model === "speech-2.8-hd" ? "default" : "secondary"}>
-            {item.model === "speech-2.8-hd" ? "HD" : "Turbo"}
+          <Badge variant="default">
+            {item.model === "chirp3-hd" ? "Chirp 3 HD" : item.model}
           </Badge>
           <span className="text-sm text-muted-foreground">
             {formatDuration(item.durationSec)}
@@ -150,10 +141,8 @@ function HistoryCard({
         </button>
         {showSettings && (
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-4">
-            <span>話速: {item.settings.speed.toFixed(1)}</span>
-            <span>音量: {item.settings.volume.toFixed(1)}</span>
-            <span>ピッチ: {item.settings.pitch > 0 ? `+${item.settings.pitch}` : item.settings.pitch}</span>
-            <span>感情: {EMOTION_LABELS[item.settings.emotion] ?? item.settings.emotion}</span>
+            <span>話速: {item.settings.speed?.toFixed(1) ?? "-"}</span>
+            <span>声の高さ: {item.settings.pitch?.toFixed(1) ?? "-"}</span>
           </div>
         )}
       </CardContent>
@@ -178,7 +167,7 @@ export function HistoryPage() {
       fetchHistory({
         page: 1,
         search: s.trim() || undefined,
-        model: m === "all" ? undefined : m === "hd" ? "speech-2.8-hd" : "speech-2.8-turbo",
+        model: m === "all" ? undefined : "chirp3-hd",
         sort: so,
       })
     },

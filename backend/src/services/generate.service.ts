@@ -13,8 +13,7 @@ const OUTPUT_DIR = path.resolve(__dirname, "../../output");
 type Speaker = { speaker: string; voiceId: string };
 type Settings = {
   speed: number;
-  stability: number;
-  similarityBoost: number;
+  pitch: number;
   model: string;
 };
 type BgmOptions = { insertMode: string; volume: number; outroDuration?: number } | undefined;
@@ -30,7 +29,7 @@ function generateCacheKey(
   voiceId: string,
   settings: Settings
 ): string {
-  const input = `${text}|${voiceId}|${settings.model}|${settings.speed}|${settings.stability}|${settings.similarityBoost}`;
+  const input = `${text}|${voiceId}|${settings.model}|${settings.speed}|${settings.pitch}`;
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
@@ -88,32 +87,32 @@ function parseScript(
   return result;
 }
 
-async function callElevenLabsTTS(
+async function callGoogleCloudTTS(
   text: string,
   voiceId: string,
   settings: Settings
 ): Promise<Buffer> {
-  if (!config.elevenlabsApiKey) {
-    throw new Error("ELEVENLABS_API_KEY is not configured");
+  if (!config.googleCloudTtsApiKey) {
+    throw new Error("GOOGLE_CLOUD_TTS_API_KEY is not configured");
   }
 
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${config.googleCloudTtsApiKey}`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "xi-api-key": config.elevenlabsApiKey,
-        Accept: "audio/mpeg",
       },
       body: JSON.stringify({
-        text,
-        model_id: settings.model,
-        language_code: "ja",
-        voice_settings: {
-          stability: settings.stability,
-          similarity_boost: settings.similarityBoost,
-          speed: settings.speed,
+        input: { text },
+        voice: {
+          languageCode: "ja-JP",
+          name: voiceId,
+        },
+        audioConfig: {
+          audioEncoding: "MP3",
+          speakingRate: settings.speed,
+          pitch: settings.pitch,
         },
       }),
     }
@@ -121,12 +120,12 @@ async function callElevenLabsTTS(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`ElevenLabs API error: ${errorText}`);
+    throw new Error(`Google Cloud TTS API error: ${errorText}`);
   }
 
-  const arrayBuf = await response.arrayBuffer();
-  const buf = Buffer.from(arrayBuf);
-  console.log(`[tts] ElevenLabs: ${buf.length} bytes`);
+  const data = (await response.json()) as { audioContent: string };
+  const buf = Buffer.from(data.audioContent, "base64");
+  console.log(`[tts] Google Cloud TTS: ${buf.length} bytes`);
   return buf;
 }
 
@@ -210,7 +209,7 @@ export async function generateRadio(
       audioBuffers.push(fs.readFileSync(cachePath));
     } else {
       console.log(`[generate] Chunk ${i + 1}/${parsedLines.length}: calling API (${line.text.length} chars)`);
-      const audio = await callElevenLabsTTS(line.text, voiceId, settings);
+      const audio = await callGoogleCloudTTS(line.text, voiceId, settings);
       console.log(`[generate] Chunk ${i + 1}: got ${audio.length} bytes`);
       fs.writeFileSync(cachePath, audio);
       audioBuffers.push(audio);

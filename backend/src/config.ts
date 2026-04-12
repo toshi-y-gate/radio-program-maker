@@ -8,6 +8,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || "",
   databaseUrl: process.env.DATABASE_URL || "",
   elevenlabsApiKey: process.env.ELEVENLABS_API_KEY || "",
+  googleCloudTtsApiKey: process.env.GOOGLE_CLOUD_TTS_API_KEY || "",
   uploadsDir: path.resolve(__dirname, "../uploads"),
 };
 

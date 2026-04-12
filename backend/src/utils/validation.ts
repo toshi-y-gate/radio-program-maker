@@ -24,11 +24,10 @@ export const generateSchema = z.object({
     })
   ).min(1).max(4),
   settings: z.object({
-    speed: z.number().min(0.7).max(1.2),
-    stability: z.number().min(0).max(1.0),
-    similarityBoost: z.number().min(0).max(1.0),
+    speed: z.number().min(0.25).max(4.0),
+    pitch: z.number().min(-20).max(20),
     model: z.enum([
-      "eleven_multilingual_v2", "eleven_turbo_v2_5",
+      "chirp3-hd",
     ]),
   }),
   bgm: z.object({

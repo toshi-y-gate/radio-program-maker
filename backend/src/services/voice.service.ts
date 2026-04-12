@@ -6,18 +6,16 @@ const ffmpegPath = require("ffmpeg-static") as string;
 import { prisma } from "../db";
 import { config } from "../config";
 
-// ElevenLabs preset voices (multilingual v2 対応)
+// Google Cloud TTS Chirp 3 HD voices (ja-JP)
 const PRESET_VOICES = [
-  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam（落ち着いた男性）", language: "ja" as const, gender: "male" as const },
-  { id: "ErXwobaYiN019PkySvjV", name: "Antoni（温かい男性）", language: "ja" as const, gender: "male" as const },
-  { id: "VR6AewLTigWG4xSOukaG", name: "Arnold（力強い男性）", language: "ja" as const, gender: "male" as const },
-  { id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh（若い男性）", language: "ja" as const, gender: "male" as const },
-  { id: "yoZ06aMxZJJ28mfd3POQ", name: "Sam（誠実な男性）", language: "ja" as const, gender: "male" as const },
-  { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel（知的な女性）", language: "ja" as const, gender: "female" as const },
-  { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella（明るい女性）", language: "ja" as const, gender: "female" as const },
-  { id: "MF3mGyEYCl7XYWbV9V6O", name: "Elli（若い女性）", language: "ja" as const, gender: "female" as const },
-  { id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte（上品な女性）", language: "ja" as const, gender: "female" as const },
-  { id: "jBpfuIE2acCO8z3wKNLl", name: "Gigi（元気な女性）", language: "ja" as const, gender: "female" as const },
+  { id: "ja-JP-Chirp3-HD-Achernar", name: "Achernar（男性A）", language: "ja" as const, gender: "male" as const },
+  { id: "ja-JP-Chirp3-HD-Enceladus", name: "Enceladus（男性B）", language: "ja" as const, gender: "male" as const },
+  { id: "ja-JP-Chirp3-HD-Fenrir", name: "Fenrir（男性C）", language: "ja" as const, gender: "male" as const },
+  { id: "ja-JP-Chirp3-HD-Puck", name: "Puck（男性D）", language: "ja" as const, gender: "male" as const },
+  { id: "ja-JP-Chirp3-HD-Aoede", name: "Aoede（女性A）", language: "ja" as const, gender: "female" as const },
+  { id: "ja-JP-Chirp3-HD-Kore", name: "Kore（女性B）", language: "ja" as const, gender: "female" as const },
+  { id: "ja-JP-Chirp3-HD-Leda", name: "Leda（女性C）", language: "ja" as const, gender: "female" as const },
+  { id: "ja-JP-Chirp3-HD-Zephyr", name: "Zephyr（女性D）", language: "ja" as const, gender: "female" as const },
 ];
 
 export function getPresetVoices() {
@@ -67,32 +65,15 @@ function prepareAudioForClone(filePath: string): string {
   return outputPath;
 }
 
-async function registerVoiceWithElevenLabs(
-  filePath: string,
-  voiceName: string
+async function registerVoiceClone(
+  _filePath: string,
+  _voiceName: string
 ): Promise<string> {
-  const preparedPath = prepareAudioForClone(filePath);
-  const fileBuffer = fs.readFileSync(preparedPath);
-  const blob = new Blob([fileBuffer]);
-  const formData = new FormData();
-  formData.append("name", voiceName);
-  formData.append("files", blob, path.basename(preparedPath));
-
-  const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
-    method: "POST",
-    headers: { "xi-api-key": config.elevenlabsApiKey },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    fs.unlinkSync(preparedPath);
-    throw new Error(`ElevenLabs voice clone failed: ${err}`);
-  }
-
-  const data = (await response.json()) as { voice_id: string };
-  fs.unlinkSync(preparedPath);
-  return data.voice_id;
+  // Google Cloud TTS Chirp 3 Instant Custom Voice は許可リスト申請が必要
+  // 申請が承認されるまで音声クローン機能は一時的に利用不可
+  throw new Error(
+    "音声クローン機能は現在準備中です。Google Cloud TTS の許可リスト申請が完了次第、利用可能になります。プリセットボイスをご利用ください。"
+  );
 }
 
 export async function createCustomVoice(
@@ -113,7 +94,7 @@ export async function createCustomVoice(
   const filePath = path.join(uploadsDir, path.basename(sampleUrl));
 
   try {
-    const elevenLabsVoiceId = await registerVoiceWithElevenLabs(filePath, name);
+    const elevenLabsVoiceId = await registerVoiceClone(filePath, name);
     await prisma.customVoice.update({
       where: { id: voice.id },
       data: { status: "available", sampleUrl: elevenLabsVoiceId },

@@ -92,32 +92,29 @@ app.post("/debug/parse-test", express.json(), (req, res) => {
   res.json({ totalLines: lines.length, totalChunks: result.length, scriptLen: script.length, chunks: result });
 });
 
-// Debug: ElevenLabs TTS test endpoint
+// Debug: Google Cloud TTS test endpoint
 app.get("/debug/tts-test", async (_req, res) => {
   try {
     const { config } = await import("./config");
     const resp = await fetch(
-      "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",
+      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${config.googleCloudTtsApiKey}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "xi-api-key": config.elevenlabsApiKey,
-          Accept: "audio/mpeg",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: "テスト音声です。",
-          model_id: "eleven_multilingual_v2",
-          voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 },
+          input: { text: "テスト音声です。" },
+          voice: { languageCode: "ja-JP", name: "ja-JP-Chirp3-HD-Achernar" },
+          audioConfig: { audioEncoding: "MP3", speakingRate: 1.0, pitch: 0 },
         }),
       }
     );
     if (!resp.ok) {
       const err = await resp.text();
-      res.json({ error: `ElevenLabs API error: ${resp.status} ${err}` });
+      res.json({ error: `Google Cloud TTS API error: ${resp.status} ${err}` });
       return;
     }
-    const buf = Buffer.from(await resp.arrayBuffer());
+    const data = (await resp.json()) as { audioContent: string };
+    const buf = Buffer.from(data.audioContent, "base64");
     res.json({ status: "ok", audioSize: buf.length });
   } catch (e) {
     res.json({ error: e instanceof Error ? e.message : String(e) });

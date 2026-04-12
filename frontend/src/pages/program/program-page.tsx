@@ -122,11 +122,9 @@ export function ProgramPage() {
   const [voiceAssignments, setVoiceAssignments] = useState<Record<string, string>>({})
 
   // 設定
-  const [model, setModel] = useState<TTSModel>("eleven_multilingual_v2")
+  const [model] = useState<TTSModel>("chirp3-hd")
   const [speed, setSpeed] = useState([1.0])
-  const [stability, setStability] = useState([0.5])
-  const [similarityBoost, setSimilarityBoost] = useState([0.75])
-  const [turboPreview, setTurboPreview] = useState(false)
+  const [pitch, setPitch] = useState([0])
 
   // BGM
   const [bgmFile, setBgmFile] = useState<File | null>(null)
@@ -159,7 +157,6 @@ export function ProgramPage() {
 
   // 生成処理
   function handleGenerate() {
-    const effectiveModel: TTSModel = turboPreview ? "eleven_turbo_v2_5" : model
     const defaultVoiceId = voicePresets.length > 0 ? voicePresets[0].id : ""
     const normalizedScript = normalizeScript(script)
 
@@ -171,9 +168,8 @@ export function ProgramPage() {
       })),
       settings: {
         speed: speed[0],
-        stability: stability[0],
-        similarityBoost: similarityBoost[0],
-        model: effectiveModel,
+        pitch: pitch[0],
+        model,
       },
       bgm: bgmFile
         ? { insertMode: bgmMode, volume: bgmVolume[0], outroDuration: bgmOutroDuration[0] }
@@ -355,18 +351,10 @@ export function ProgramPage() {
               <CardTitle className="text-lg">音声設定</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* モデル選択 */}
+              {/* モデル表示 */}
               <div className="space-y-2">
                 <Label>モデル</Label>
-                <Select value={model} onValueChange={(val) => setModel(val as TTSModel)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="eleven_multilingual_v2">Multilingual v2（高品質）</SelectItem>
-                    <SelectItem value="eleven_turbo_v2_5">Turbo v2.5（高速）</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="text-sm text-muted-foreground">Google Cloud TTS（Chirp 3 HD）</div>
               </div>
 
               <Separator />
@@ -380,62 +368,25 @@ export function ProgramPage() {
                 <Slider
                   value={speed}
                   onValueChange={(val) => setSpeed(Array.isArray(val) ? val : [val])}
-                  min={0.7}
-                  max={1.2}
+                  min={0.5}
+                  max={2.0}
                   step={0.1}
                 />
               </div>
 
-              {/* 安定性 */}
+              {/* 声の高さ */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>安定性</Label>
-                  <span className="text-sm text-muted-foreground">{(stability[0] ?? 0.5).toFixed(2)}</span>
+                  <Label>声の高さ</Label>
+                  <span className="text-sm text-muted-foreground">{(pitch[0] ?? 0).toFixed(1)}</span>
                 </div>
                 <Slider
-                  value={stability}
-                  onValueChange={(val) => setStability(Array.isArray(val) ? val : [val])}
-                  min={0}
-                  max={1.0}
-                  step={0.05}
+                  value={pitch}
+                  onValueChange={(val) => setPitch(Array.isArray(val) ? val : [val])}
+                  min={-10}
+                  max={10}
+                  step={1}
                 />
-              </div>
-
-              {/* 類似度 */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>類似度</Label>
-                  <span className="text-sm text-muted-foreground">{(similarityBoost[0] ?? 0.75).toFixed(2)}</span>
-                </div>
-                <Slider
-                  value={similarityBoost}
-                  onValueChange={(val) => setSimilarityBoost(Array.isArray(val) ? val : [val])}
-                  min={0}
-                  max={1.0}
-                  step={0.05}
-                />
-              </div>
-
-              <Separator />
-
-              {/* Turboプレビュー */}
-              <div className="flex items-center justify-between">
-                <Label>Turboプレビュー</Label>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={turboPreview}
-                  onClick={() => setTurboPreview(!turboPreview)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors ${
-                    turboPreview ? "bg-primary" : "bg-muted"
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-                      turboPreview ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
               </div>
             </CardContent>
           </Card>

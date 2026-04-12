@@ -23,14 +23,11 @@ export type HistoryItem = {
   durationSec: number
   settings: {
     speed: number
-    stability: number
-    similarityBoost: number
+    pitch: number
   }
 }
 
-export type TTSModel =
-  | "eleven_multilingual_v2"
-  | "eleven_turbo_v2_5"
+export type TTSModel = "chirp3-hd"
 
 export type BGMInsertMode =
   | "background"
@@ -41,8 +38,7 @@ export type BGMInsertMode =
 
 export type AudioSettings = {
   speed: number
-  stability: number
-  similarityBoost: number
+  pitch: number
   model: TTSModel
 }
 
