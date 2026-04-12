@@ -8,7 +8,7 @@ import { config } from "../config";
 
 // Google Cloud TTS Chirp 3 HD voices (ja-JP)
 const PRESET_VOICES = [
-  { id: "ja-JP-Chirp3-HD-Achernar", name: "Achernar（男性A）", language: "ja" as const, gender: "male" as const },
+  { id: "ja-JP-Chirp3-HD-Charon", name: "Charon（男性A）", language: "ja" as const, gender: "male" as const },
   { id: "ja-JP-Chirp3-HD-Enceladus", name: "Enceladus（男性B）", language: "ja" as const, gender: "male" as const },
   { id: "ja-JP-Chirp3-HD-Fenrir", name: "Fenrir（男性C）", language: "ja" as const, gender: "male" as const },
   { id: "ja-JP-Chirp3-HD-Puck", name: "Puck（男性D）", language: "ja" as const, gender: "male" as const },
