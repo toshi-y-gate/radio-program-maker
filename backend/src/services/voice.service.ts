@@ -65,15 +65,32 @@ function prepareAudioForClone(filePath: string): string {
   return outputPath;
 }
 
-async function registerVoiceClone(
-  _filePath: string,
-  _voiceName: string
+async function registerVoiceWithElevenLabs(
+  filePath: string,
+  voiceName: string
 ): Promise<string> {
-  // Google Cloud TTS Chirp 3 Instant Custom Voice は許可リスト申請が必要
-  // 申請が承認されるまで音声クローン機能は一時的に利用不可
-  throw new Error(
-    "音声クローン機能は現在準備中です。Google Cloud TTS の許可リスト申請が完了次第、利用可能になります。プリセットボイスをご利用ください。"
-  );
+  const preparedPath = prepareAudioForClone(filePath);
+  const fileBuffer = fs.readFileSync(preparedPath);
+  const blob = new Blob([fileBuffer]);
+  const formData = new FormData();
+  formData.append("name", voiceName);
+  formData.append("files", blob, path.basename(preparedPath));
+
+  const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+    method: "POST",
+    headers: { "xi-api-key": config.elevenlabsApiKey },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    fs.unlinkSync(preparedPath);
+    throw new Error(`ElevenLabs voice clone failed: ${err}`);
+  }
+
+  const data = (await response.json()) as { voice_id: string };
+  fs.unlinkSync(preparedPath);
+  return data.voice_id;
 }
 
 export async function createCustomVoice(
@@ -94,7 +111,7 @@ export async function createCustomVoice(
   const filePath = path.join(uploadsDir, path.basename(sampleUrl));
 
   try {
-    const elevenLabsVoiceId = await registerVoiceClone(filePath, name);
+    const elevenLabsVoiceId = await registerVoiceWithElevenLabs(filePath, name);
     await prisma.customVoice.update({
       where: { id: voice.id },
       data: { status: "available", sampleUrl: elevenLabsVoiceId },

@@ -6,6 +6,7 @@ import { execSync } from "child_process";
 const ffmpegPath = require("ffmpeg-static") as string;
 import { config } from "../config";
 import { prisma } from "../db";
+import { getPresetVoices } from "./voice.service";
 
 const CACHE_DIR = path.resolve(__dirname, "../../cache");
 const OUTPUT_DIR = path.resolve(__dirname, "../../output");
@@ -129,6 +130,65 @@ async function callGoogleCloudTTS(
   return buf;
 }
 
+async function callElevenLabsTTS(
+  text: string,
+  voiceId: string,
+  settings: Settings
+): Promise<Buffer> {
+  if (!config.elevenlabsApiKey) {
+    throw new Error("ELEVENLABS_API_KEY is not configured");
+  }
+
+  const response = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": config.elevenlabsApiKey,
+        Accept: "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+        language_code: "ja",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          speed: settings.speed,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`ElevenLabs API error: ${errorText}`);
+  }
+
+  const arrayBuf = await response.arrayBuffer();
+  const buf = Buffer.from(arrayBuf);
+  console.log(`[tts] ElevenLabs: ${buf.length} bytes`);
+  return buf;
+}
+
+const PRESET_VOICE_IDS = new Set(getPresetVoices().map((v) => v.id));
+
+function isPresetVoice(voiceId: string): boolean {
+  return PRESET_VOICE_IDS.has(voiceId);
+}
+
+async function callTTS(
+  text: string,
+  voiceId: string,
+  settings: Settings
+): Promise<Buffer> {
+  if (isPresetVoice(voiceId)) {
+    return callGoogleCloudTTS(text, voiceId, settings);
+  }
+  return callElevenLabsTTS(text, voiceId, settings);
+}
+
 function getSpeechDuration(filePath: string): number {
   try {
     // ffmpegに-iだけ渡してstderrからDuration情報を取得（デコード不要で高速）
@@ -209,7 +269,7 @@ export async function generateRadio(
       audioBuffers.push(fs.readFileSync(cachePath));
     } else {
       console.log(`[generate] Chunk ${i + 1}/${parsedLines.length}: calling API (${line.text.length} chars)`);
-      const audio = await callGoogleCloudTTS(line.text, voiceId, settings);
+      const audio = await callTTS(line.text, voiceId, settings);
       console.log(`[generate] Chunk ${i + 1}: got ${audio.length} bytes`);
       fs.writeFileSync(cachePath, audio);
       audioBuffers.push(audio);
