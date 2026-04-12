@@ -380,8 +380,8 @@ export function ProgramPage() {
                 <Slider
                   value={speed}
                   onValueChange={(val) => setSpeed(Array.isArray(val) ? val : [val])}
-                  min={0.5}
-                  max={2.0}
+                  min={0.7}
+                  max={1.2}
                   step={0.1}
                 />
               </div>

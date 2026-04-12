@@ -24,7 +24,7 @@ export const generateSchema = z.object({
     })
   ).min(1).max(4),
   settings: z.object({
-    speed: z.number().min(0.5).max(2.0),
+    speed: z.number().min(0.7).max(1.2),
     stability: z.number().min(0).max(1.0),
     similarityBoost: z.number().min(0).max(1.0),
     model: z.enum([
