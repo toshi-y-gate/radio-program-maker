@@ -20,3 +20,14 @@ frontend/dist/
 # 一時ファイル
 .appgenius_temp/
 mockups/
+.vercel
+.env*.local
+.model_check_cache.json
+.venv_pptx/
+*.mp4
+*.wav
+presentations/
+transcripts_royfurr/
+expanded_*.txt
+vimeo_*.txt
+bulk_transcripts.py

@@ -3,10 +3,12 @@ import json
 import hashlib
 import secrets
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from core.config import USERS_DIR
 
 USERS_FILE = os.path.join(USERS_DIR, "users.json")
+SESSIONS_FILE = os.path.join(USERS_DIR, "sessions.json")
+SESSION_EXPIRY_DAYS = 7
 
 
 def _hash_password(password: str, salt: str = None) -> tuple[str, str]:
@@ -115,3 +117,52 @@ def increment_usage(email: str, characters: int) -> None:
     user["usage"][current_month]["generation_count"] += 1
     user["usage"][current_month]["total_characters"] += characters
     _save_users(users)
+
+
+def _load_sessions() -> dict:
+    if not os.path.exists(SESSIONS_FILE):
+        return {}
+    with open(SESSIONS_FILE, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+
+
+def _save_sessions(sessions: dict) -> None:
+    with open(SESSIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(sessions, f, ensure_ascii=False, indent=2)
+
+
+def create_session(email: str) -> str:
+    """セッショントークンを発行して返す"""
+    token = secrets.token_urlsafe(32)
+    sessions = _load_sessions()
+    sessions[token] = {
+        "email": email,
+        "expires_at": (datetime.now() + timedelta(days=SESSION_EXPIRY_DAYS)).isoformat(),
+    }
+    _save_sessions(sessions)
+    return token
+
+
+def validate_session(token: str) -> dict | None:
+    """トークンが有効ならユーザー情報を返す。無効ならNone"""
+    if not token:
+        return None
+    sessions = _load_sessions()
+    session = sessions.get(token)
+    if not session:
+        return None
+    if datetime.fromisoformat(session["expires_at"]) < datetime.now():
+        sessions.pop(token, None)
+        _save_sessions(sessions)
+        return None
+    return get_user(session["email"])
+
+
+def delete_session(token: str) -> None:
+    """セッショントークンを無効化"""
+    sessions = _load_sessions()
+    sessions.pop(token, None)
+    _save_sessions(sessions)

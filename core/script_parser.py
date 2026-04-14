@@ -22,9 +22,15 @@ def parse_script(script: str) -> list[ScriptLine]:
         r"(?:\[(.+?)\]|【(.+?)】|(.+?)[：:])\s*(.*)"
     )
 
+    hashtag_line_pattern = re.compile(r"^[\s#\uFF03]+[\w\u3000-\u9FFF]+([\s]+[#\uFF03][\w\u3000-\u9FFF]+)*\s*$")
+
     for raw_line in script.strip().splitlines():
         raw_line = raw_line.strip()
         if not raw_line:
+            continue
+
+        # ハッシュタグのみで構成される行をスキップ
+        if hashtag_line_pattern.match(raw_line):
             continue
 
         match = pattern.match(raw_line)

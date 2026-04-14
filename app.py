@@ -5,14 +5,16 @@ import streamlit as st
 from datetime import datetime
 from pydub import AudioSegment
 
-from core.config import ELEVENLABS_API_KEY, PRESET_VOICES, BGM_DIR, OUTPUT_DIR, SCRIPT_TEMPLATES, SUPPORTED_LANGUAGES
+from core.config import MINIMAX_API_KEY, PRESET_VOICES, BGM_DIR, OUTPUT_DIR, SCRIPT_TEMPLATES, SUPPORTED_LANGUAGES
 from core.tts import (
     text_to_speech,
     test_connection,
+    upload_voice_file,
     clone_voice,
     load_custom_voices,
     save_custom_voice,
     delete_custom_voice,
+    check_model_update,
 )
 from core.script_parser import parse_script, get_speakers
 from core.audio_mixer import (
@@ -23,7 +25,7 @@ from core.audio_mixer import (
 )
 from core.cache import get_cached_audio, save_to_cache, get_cache_stats, clear_cache
 from core.history import save_history, load_history, delete_history, clear_history
-from core.auth import register_user, authenticate, get_usage, increment_usage
+from core.auth import register_user, authenticate, get_usage, increment_usage, create_session, validate_session, delete_session
 
 st.set_page_config(
     page_title="ラジオ番組メーカー",
@@ -31,11 +33,20 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 認証状態の初期化 ---
+# --- 認証状態の初期化（リロード時はトークンから復元） ---
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
     st.session_state["user_email"] = None
     st.session_state["user_name"] = None
+
+    token = st.query_params.get("token")
+    if token:
+        user = validate_session(token)
+        if user:
+            st.session_state["authenticated"] = True
+            st.session_state["user_email"] = user["email"]
+            st.session_state["user_name"] = user["display_name"]
+            st.session_state["session_token"] = token
 
 
 # === ログイン/登録画面 ===
@@ -57,9 +68,12 @@ def show_auth_page():
             else:
                 user = authenticate(login_email, login_password)
                 if user:
+                    token = create_session(user["email"])
                     st.session_state["authenticated"] = True
                     st.session_state["user_email"] = user["email"]
                     st.session_state["user_name"] = user["display_name"]
+                    st.session_state["session_token"] = token
+                    st.query_params["token"] = token
                     st.rerun()
                 else:
                     st.error("メールアドレスまたはパスワードが正しくありません。")
@@ -107,10 +121,20 @@ def show_main_app():
         st.caption(f"合計文字数: {usage['total_characters']:,}文字")
 
         if st.button("🚪 ログアウト"):
+            token = st.session_state.get("session_token")
+            if token:
+                delete_session(token)
             st.session_state["authenticated"] = False
             st.session_state["user_email"] = None
             st.session_state["user_name"] = None
+            st.session_state["session_token"] = None
+            st.query_params.clear()
             st.rerun()
+
+        # モデル更新チェック
+        new_model = check_model_update()
+        if new_model:
+            st.warning(f"MiniMaxの新モデル **{new_model}** が利用可能です。config.pyのDEFAULT_MODELを更新してください。")
 
         st.divider()
         st.header("⚙️ 設定")
@@ -151,7 +175,7 @@ def show_main_app():
             "デフォルト言語",
             options=lang_options,
             format_func=lambda x: SUPPORTED_LANGUAGES[x],
-            index=0,
+            index=lang_options.index("Japanese") if "Japanese" in lang_options else 0,
             help="「自動検出」はAPIが言語を自動判定します。日英混在スクリプトでは話者ごとに言語を指定できます。",
         )
         per_speaker_lang = st.checkbox(
@@ -165,7 +189,7 @@ def show_main_app():
         # 音声設定
         st.subheader("🔊 音声設定")
         speed = st.slider("話速", 0.5, 2.0, 1.0, 0.1)
-        volume = st.slider("音量", 0.1, 10.0, 1.0, 0.1)
+        volume = st.slider("音量", 0.1, 10.0, 3.0, 0.1)
         pitch = st.slider("ピッチ", -12, 12, 0)
         emotion = st.selectbox(
             "感情",
@@ -201,9 +225,9 @@ def show_main_app():
         }
 
         if bgm_mode != "なし":
-            bgm_volume = st.slider("BGM音量 (dB)", -30, 0, -15)
-            intro_sec = st.slider("イントロ長さ (秒)", 1, 10, 3)
-            outro_sec = st.slider("アウトロ長さ (秒)", 1, 15, 5)
+            bgm_volume = st.slider("BGM音量 (dB)", -30, 0, -20)
+            intro_sec = st.slider("イントロ長さ (秒)", 0, 10, 3)
+            outro_sec = st.slider("アウトロ長さ (秒)", 0, 15, 5)
 
         st.divider()
 
@@ -262,42 +286,47 @@ def show_main_app():
         st.subheader("🎤 ボイスクローン")
         st.markdown("音声サンプルをアップロードして、カスタムボイスを作成できます。")
 
-        st.info("📋 音声サンプルの要件: MP3/M4A/WAV形式、10秒〜5分、20MB以下")
+        st.info("📋 音声サンプルの要件: MP3/M4A/WAV/MP4形式、10秒〜5分、20MB以下")
 
         clone_file = st.file_uploader(
             "音声サンプルをアップロード",
-            type=["mp3", "m4a", "wav"],
+            type=["mp3", "m4a", "wav", "mp4"],
             key="clone_upload",
         )
 
-        col1, col2 = st.columns(2)
-        with col1:
-            clone_name = st.text_input(
-                "ボイス名（表示用）",
-                placeholder="例: 田中さんの声",
-            )
-        with col2:
-            clone_id = st.text_input(
-                "ボイスID（英数字）",
-                placeholder="例: tanaka_voice_01",
-                help="英数字とアンダースコアのみ。アカウント内で一意である必要があります。",
-            )
+        clone_name = st.text_input(
+            "ボイス名",
+            placeholder="例: 田中さんの声",
+        )
 
         demo_text = st.text_input(
             "試聴テキスト",
             value="こんにちは、ボイスクローンのテストです。",
         )
 
-        if st.button("🎙️ ボイスクローンを作成", type="primary", disabled=not (clone_file and clone_name and clone_id)):
-            if not ELEVENLABS_API_KEY:
+        if st.button("🎙️ ボイスクローンを作成", type="primary", disabled=not (clone_file and clone_name)):
+            if not MINIMAX_API_KEY:
                 st.error("APIキーが設定されていません。`.env` ファイルを確認してください。")
             else:
+                import uuid
+                clone_id = "voice" + uuid.uuid4().hex[:12]
                 with st.spinner("音声ファイルをアップロード中..."):
                     try:
                         # 一時ファイルに保存
                         temp_path = os.path.join(BGM_DIR, f"_temp_clone_{clone_file.name}")
                         with open(temp_path, "wb") as f:
                             f.write(clone_file.getbuffer())
+
+                        # MP4の場合はMP3に変換（ffmpegで確実に変換）
+                        if temp_path.lower().endswith(".mp4"):
+                            mp3_path = temp_path.rsplit(".", 1)[0] + ".mp3"
+                            import subprocess
+                            subprocess.run(
+                                ["ffmpeg", "-i", temp_path, "-vn", "-acodec", "libmp3lame", "-y", mp3_path],
+                                capture_output=True, timeout=60,
+                            )
+                            os.remove(temp_path)
+                            temp_path = mp3_path
 
                         # アップロード
                         file_id = upload_voice_file(temp_path)
@@ -313,7 +342,6 @@ def show_main_app():
 
                         st.success(f"ボイスクローン「{clone_name}」を作成しました！")
                         st.audio(io.BytesIO(audio_bytes), format="audio/mp3")
-                        st.rerun()
 
                     except Exception as e:
                         st.error(f"エラー: {e}")
@@ -432,7 +460,7 @@ def show_main_app():
         script_text = st.text_area(
             "スクリプトを入力",
             value=default_script,
-            height=250,
+            height=400,
             placeholder="[話者名] セリフを入力してください...",
         )
 
@@ -481,13 +509,6 @@ def show_main_app():
 
                 st.divider()
 
-                # プレビュー
-                st.subheader("📋 スクリプトプレビュー")
-                for line in script_lines:
-                    st.markdown(f"**{line.speaker}**: {line.text}")
-
-                st.divider()
-
                 # F2-2: Turboプレビュー対応の生成ボタン
                 if use_turbo_preview:
                     btn_col1, btn_col2 = st.columns(2)
@@ -518,7 +539,7 @@ def show_main_app():
                     gen_model = model
 
                 if generate_clicked:
-                    if not ELEVENLABS_API_KEY:
+                    if not MINIMAX_API_KEY:
                         st.error("APIキーが設定されていません。`.env` ファイルを確認してください。")
                     else:
                         # モデル表示
@@ -624,26 +645,13 @@ def show_main_app():
                             progress_bar.progress(1.0)
                             status_text.text("✅ 生成完了！")
 
-                            # 再生 & ダウンロード
-                            st.subheader("🎧 生成結果")
-
+                            # session_stateに保存して再実行後も表示
                             audio_buffer = io.BytesIO()
                             combined.export(audio_buffer, format="mp3")
-                            audio_buffer.seek(0)
-
-                            st.audio(audio_buffer, format="audio/mp3")
-
-                            st.download_button(
-                                label="💾 MP3をダウンロード",
-                                data=audio_buffer.getvalue(),
-                                file_name=f"{filename}.mp3",
-                                mime="audio/mpeg",
-                                use_container_width=True,
-                            )
-
-                            duration_sec = len(combined) / 1000
-                            st.info(
-                                f"📊 音声長さ: {duration_sec:.1f}秒 | "
+                            st.session_state["last_audio"] = audio_buffer.getvalue()
+                            st.session_state["last_filename"] = f"{filename}.mp3"
+                            st.session_state["last_info"] = (
+                                f"📊 音声長さ: {len(combined) / 1000:.1f}秒 | "
                                 f"話者数: {len(speakers)}名 | "
                                 f"モデル: {gen_model} | "
                                 f"保存先: {filepath}"
@@ -663,7 +671,7 @@ def show_main_app():
                                     "emotion": emotion,
                                 },
                                 "filename": f"{filename}.mp3",
-                                "duration_sec": round(duration_sec, 1),
+                                "duration_sec": round(len(combined) / 1000, 1),
                             }, user_email=user_email)
 
                             # 利用量を記録
@@ -675,6 +683,26 @@ def show_main_app():
                                     f"💾 キャッシュ効果: {cache_hits}/{total}件がキャッシュから取得 "
                                     f"（API呼び出し{api_calls}回に削減！）"
                                 )
+
+        # --- 生成結果の表示（session_stateから復元） ---
+        if "last_audio" in st.session_state:
+            import base64
+            st.divider()
+            st.subheader("🎧 生成結果")
+            audio_b64 = base64.b64encode(st.session_state["last_audio"]).decode()
+            dl_filename = st.session_state.get("last_filename", "radio.mp3")
+            st.components.v1.html(
+                f"""
+                <audio controls style="width:100%; margin-bottom:12px" src="data:audio/mp3;base64,{audio_b64}"></audio>
+                <a href="data:audio/mpeg;base64,{audio_b64}" download="{dl_filename}"
+                   style="display:inline-block; width:100%; padding:10px 0; background:#4CAF50; color:white;
+                          text-align:center; border-radius:6px; text-decoration:none; font-size:15px;">
+                   💾 MP3をダウンロード
+                </a>
+                """,
+                height=120,
+            )
+            st.caption(st.session_state.get("last_info", ""))
 
 
 # --- ルーティング ---

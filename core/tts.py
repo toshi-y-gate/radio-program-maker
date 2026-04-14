@@ -1,11 +1,15 @@
 import os
 import json
+import re
 import requests
-from core.config import ELEVENLABS_API_KEY, DEFAULT_MODEL
+from datetime import datetime, timedelta
+from core.config import MINIMAX_API_KEY, MINIMAX_API_URL, DEFAULT_MODEL, AUDIO_SETTINGS
 
-ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
-ELEVENLABS_VOICES_URL = "https://api.elevenlabs.io/v1/voices"
+MINIMAX_UPLOAD_URL = "https://api.minimax.io/v1/files/upload"
+MINIMAX_CLONE_URL = "https://api.minimax.io/v1/voice_clone"
+MINIMAX_DOCS_URL = "https://platform.minimax.io/docs/guides/text-to-speech"
 CUSTOM_VOICES_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "custom_voices.json")
+_MODEL_CHECK_CACHE = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".model_check_cache.json")
 
 
 def text_to_speech(
@@ -13,50 +17,93 @@ def text_to_speech(
     voice_id: str,
     model: str = DEFAULT_MODEL,
     speed: float = 1.0,
-    stability: float = 0.5,
-    similarity_boost: float = 0.75,
+    volume: float = 1.0,
+    pitch: int = 0,
+    emotion: str = "calm",
+    language_boost: str = "auto",
 ) -> bytes:
-    """ElevenLabs APIでテキストを音声に変換する"""
+    """MiniMax APIでテキストを音声に変換する"""
     headers = {
         "Content-Type": "application/json",
-        "xi-api-key": ELEVENLABS_API_KEY,
-        "Accept": "audio/mpeg",
+        "Authorization": f"Bearer {MINIMAX_API_KEY}",
     }
 
     payload = {
+        "model": model,
         "text": text,
-        "model_id": model,
-        "voice_settings": {
-            "stability": stability,
-            "similarity_boost": similarity_boost,
+        "stream": False,
+        "language_boost": language_boost,
+        "voice_setting": {
+            "voice_id": voice_id,
             "speed": speed,
+            "vol": volume,
+            "pitch": pitch,
+            "emotion": emotion,
         },
+        "audio_setting": AUDIO_SETTINGS,
     }
 
-    response = requests.post(
-        f"{ELEVENLABS_TTS_URL}/{voice_id}",
-        headers=headers,
-        json=payload,
-        timeout=60,
-    )
+    response = requests.post(MINIMAX_API_URL, headers=headers, json=payload, timeout=60)
     response.raise_for_status()
-    return response.content
+
+    data = response.json()
+
+    if data.get("base_resp", {}).get("status_code", -1) != 0:
+        error_msg = data.get("base_resp", {}).get("status_msg", "Unknown error")
+        raise RuntimeError(f"MiniMax API error: {error_msg}")
+
+    audio_hex = data["data"]["audio"]
+    audio_bytes = bytes.fromhex(audio_hex)
+
+    return audio_bytes
 
 
-def clone_voice(file_path: str, voice_name: str) -> str:
-    """ボイスクローンを作成し、voice_idを返す"""
-    headers = {"xi-api-key": ELEVENLABS_API_KEY}
+def upload_voice_file(file_path: str) -> int:
+    """音声ファイルをMiniMax APIにアップロードし、file_idを返す"""
+    headers = {"Authorization": f"Bearer {MINIMAX_API_KEY}"}
     with open(file_path, "rb") as f:
         response = requests.post(
-            f"{ELEVENLABS_VOICES_URL}/add",
+            MINIMAX_UPLOAD_URL,
             headers=headers,
-            data={"name": voice_name},
-            files={"files": f},
-            timeout=120,
+            data={"purpose": "voice_clone"},
+            files={"file": f},
+            timeout=60,
         )
     response.raise_for_status()
     data = response.json()
-    return data["voice_id"]
+    if data.get("base_resp", {}).get("status_code", -1) != 0:
+        error_msg = data.get("base_resp", {}).get("status_msg", "Unknown error")
+        raise RuntimeError(f"ファイルアップロード失敗: {error_msg}")
+    file_obj = data.get("file")
+    if not file_obj:
+        raise RuntimeError(f"ファイルアップロード失敗: レスポンスにfileがありません: {data}")
+    file_id = file_obj.get("file_id")
+    if not file_id:
+        raise RuntimeError(f"ファイルアップロード失敗: file_idがありません: {data}")
+    return file_id
+
+
+def clone_voice(file_id, voice_id: str, demo_text: str = "こんにちは、ボイスクローンのテストです。") -> bytes:
+    """ボイスクローンを登録し、デモ音声を生成して返す"""
+    # Step 1: ボイスクローンを登録
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+    }
+    payload = {
+        "file_id": file_id,
+        "voice_id": voice_id,
+    }
+    response = requests.post(MINIMAX_CLONE_URL, headers=headers, json=payload, timeout=120)
+    response.raise_for_status()
+    data = response.json()
+
+    if data.get("base_resp", {}).get("status_code", -1) != 0:
+        error_msg = data.get("base_resp", {}).get("status_msg", "Unknown error")
+        raise RuntimeError(f"ボイスクローン登録失敗: {error_msg}")
+
+    # Step 2: 登録したクローンボイスでデモ音声を生成
+    return text_to_speech(demo_text, voice_id)
 
 
 def load_custom_voices() -> dict[str, str]:
@@ -84,12 +131,63 @@ def delete_custom_voice(voice_id: str) -> None:
 
 
 def test_connection() -> dict:
-    """ElevenLabs API接続テスト"""
-    headers = {"xi-api-key": ELEVENLABS_API_KEY}
-    response = requests.get(ELEVENLABS_VOICES_URL, headers=headers, timeout=30)
+    """API接続テスト（短いテキストで確認）"""
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+    }
+
+    payload = {
+        "model": DEFAULT_MODEL,
+        "text": "接続テストです。",
+        "stream": False,
+        "language_boost": "auto",
+        "voice_setting": {
+            "voice_id": "Japanese_Whisper_Belle",
+            "speed": 1.0,
+            "vol": 1.0,
+            "pitch": 0,
+        },
+        "audio_setting": AUDIO_SETTINGS,
+    }
+
+    response = requests.post(MINIMAX_API_URL, headers=headers, json=payload, timeout=30)
     response.raise_for_status()
+
     data = response.json()
     return {
-        "success": True,
-        "voice_count": len(data.get("voices", [])),
+        "success": data.get("base_resp", {}).get("status_code") == 0,
+        "message": data.get("base_resp", {}).get("status_msg", ""),
+        "usage_characters": data.get("extra_info", {}).get("usage_characters", 0),
     }
+
+
+def check_model_update() -> str | None:
+    """MiniMaxドキュメントから最新モデルを確認。新バージョンがあればモデル名を返す。1日1回のみチェック。"""
+    # キャッシュ確認（1日1回に制限）
+    if os.path.exists(_MODEL_CHECK_CACHE):
+        with open(_MODEL_CHECK_CACHE, "r") as f:
+            cache = json.load(f)
+        checked_at = datetime.fromisoformat(cache.get("checked_at", "2000-01-01"))
+        if datetime.now() - checked_at < timedelta(days=1):
+            return cache.get("new_model")
+
+    new_model = None
+    try:
+        resp = requests.get(MINIMAX_DOCS_URL, timeout=10)
+        # ドキュメントからspeech-X.X-hd パターンを抽出
+        models = re.findall(r"speech-(\d+\.\d+)-hd", resp.text)
+        if models:
+            # バージョン番号で降順ソートして最新を取得
+            latest = sorted(set(models), key=lambda v: float(v), reverse=True)[0]
+            current = re.search(r"(\d+\.\d+)", DEFAULT_MODEL)
+            if current and float(latest) > float(current.group(1)):
+                new_model = f"speech-{latest}-hd"
+    except Exception:
+        pass
+
+    # 結果をキャッシュ
+    with open(_MODEL_CHECK_CACHE, "w") as f:
+        json.dump({"checked_at": datetime.now().isoformat(), "new_model": new_model}, f)
+
+    return new_model
