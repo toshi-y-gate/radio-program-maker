@@ -12,6 +12,7 @@ venv/
 /bgm/
 /history/
 /users/
+/logs/
 
 # フロントエンド
 frontend/node_modules/

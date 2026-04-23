@@ -329,13 +329,13 @@ def show_main_app():
                             temp_path = mp3_path
 
                         # アップロード
-                        file_id = upload_voice_file(temp_path)
+                        file_id = upload_voice_file(temp_path, user_id=user_email)
 
                         # クリーンアップ
                         os.remove(temp_path)
 
                         st.info("ボイスクローンを作成中...")
-                        audio_bytes = clone_voice(file_id, clone_id, demo_text)
+                        audio_bytes = clone_voice(file_id, clone_id, demo_text, user_id=user_email)
 
                         # カスタムボイスとして保存
                         save_custom_voice(clone_id, clone_name)
@@ -595,6 +595,7 @@ def show_main_app():
                                         pitch=pitch,
                                         emotion=emotion,
                                         language_boost=lang,
+                                        user_id=user_email,
                                     )
                                     # キャッシュに保存
                                     save_to_cache(
